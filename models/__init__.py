@@ -1,3 +1,3 @@
-from models.User import User
-from models.LastLocationPostGis import LastLocationPostGis
-from models.PersonHealth import PersonHealth
+from models.userhealth import UserHealth
+from models.user import User
+from models.lastlocationpostgis import LastLocationPostGis

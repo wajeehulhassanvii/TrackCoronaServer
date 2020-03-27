@@ -21,33 +21,44 @@ app = Flask(
     # insert names below like ->template_folder="../client/templates",<-
     ) # Flask app ends here
 
-postgre_database_uri='postgres+psycopg2://wajeeh-machine:Waje3e3h@127.0.0.1:5432/trackcorona'
-# app config is updating app settings
-app.config.update(
-    # TODO: create postgre database uri string that points to db file
-    # below are the app settings
-    SQLALCHEMY_DATABASE_URI=postgre_database_uri,
-    SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    SECRET_KEY='ThisIsSecretKeyForFlaskLogin'
-)
+postgre_database_uri='postgresql+psycopg2://wajeeh-machine:Waje3e3h@localhost:5432/trackcorona'
+# config from file, file should be in the same directory
+app.config.from_pyfile('config.cfg')
 
+# app config is updating app settings
+# update(
+#     # TODO: create postgre database uri string that points to db file
+#     # below are the app settings
+#     SQLALCHEMY_DATABASE_URI=postgre_database_uri,
+#     SQLALCHEMY_TRACK_MODIFICATIONS=False,
+#     SECRET_KEY='ThisIsSecretKeyForFlaskLogin'
+# )
+
+# initialize the database connection
+db = SQLAlchemy(app)
 # initialize Flask login manager
 login_manager = LoginManager(app)
 # take us to login page if we are not logged in and try to visit protected page
 login_manager.login_view = '/login'
 login_manager.login_message = 'Cannot login sorry!'
-# initialize the database connection
-db = SQLAlchemy(app)
 # initialize bcrypt
 bcrypt = Bcrypt()
 # initialize database migration management
 migrate = Migrate(app, db)
 toolbar = DebugToolbarExtension()
 
+# working table example
+# class Test(db.Model):
+    # id = db.Column(db.Integer, primary_key=True)
+
+
+# from models import *
+import models
+
 @app.route('/')
 def view_registered_guests():
-    from .models.User import User
-    person = User.query.all()
+    # from models.User import User
+    # person = User.query.all()
     # replaced
     #guests = Guest.query.all()
     #return render_template('guest_list.html', guests=guests)
@@ -105,3 +116,7 @@ def register_guest():
 
     return render_template(
         'guest_confirmation.html', name=name, email=email)
+
+
+if __name__ == '__main__':
+    app.run(debug=True)

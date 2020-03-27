@@ -1,22 +1,21 @@
+# import os
+from app import db
+from app import UserMixin
 
-import os
 import datetime as dt
 from binascii import hexlify
-from flask_login import UserMixin
+# from flask_login import UserMixin
 from werkzeug import security
-
-
 
 class User(UserMixin, db.Model):
     """Simple database model to track event attendees."""
 
-    __tablename__ = 'users'
-
+    __tablename__ = 'user'
     userId = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(80), unique=True)
-    created_at = Column(db.DateTime, nullable=False, default=dt.datetime.utcnow)
-    last_name = Column(db.String(30), nullable=False)
-    first_name = Column(db.String(30), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=dt.datetime.utcnow)
+    last_name = db.Column(db.String(30), nullable=False)
+    first_name = db.Column(db.String(30), nullable=False)
     password = db.Column(db.String(120), nullable=False)
     phoneNumber = db.Column(db.String(80), nullable=False)
 
@@ -27,7 +26,6 @@ class User(UserMixin, db.Model):
                 firstName=None,
                 lastName=None,
                 ):
-
         self.email = email
         if password:
             self.password = security.generate_password_hash(password)
