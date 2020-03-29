@@ -1,0 +1,63 @@
+
+Before you mark it as duplicate please read my problem:
+
+I am trying to import a class from a file from a subdirectory
+
+> main.py
+> --->folder/
+> ----->file.py
+
+and in file.py i have a class imlpemented ( Klasa) What have I tried:
+
+putting in main.py:
+
+from folder import file
+from file import Klasa
+
+I am getting the error:
+
+    from file import Klasa
+
+    ImportError: No module named 'file'
+
+When I try to use just:
+
+from folder import file
+
+I get this error:
+
+    tmp = Klasa()
+
+    NameError: name 'Klasa' is not defined
+
+I have put an empty __init__.py in the subfolder and it still does not work, and I have put in the __init__.py : from file import Klasa and still doesnt work.
+
+If main and file are in the same folder this work:
+
+from file import Klasa
+
+but i want them to be in separate files.
+
+Can someone tell me what i am doing wrong?
+
+
+
+_____________________
+
+ANSWER
+Your problem is basically that you never specified the right path to the file.
+
+Try instead, from your main script:
+
+from folder.file import Klasa
+
+Or, with from folder import file:
+
+from folder import file
+k = file.Klasa()
+
+Or again:
+
+import folder.file as myModule
+k = myModule.Klasa()
+

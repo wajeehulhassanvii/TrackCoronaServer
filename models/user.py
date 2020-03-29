@@ -1,38 +1,45 @@
-# import os
-from app import db
-from app import UserMixin
+import os
+from extensions import db
+from extensions import bcrypt
+
+from flask_login import UserMixin
 
 import datetime as dt
 from binascii import hexlify
-# from flask_login import UserMixin
 from werkzeug import security
+
 
 class User(UserMixin, db.Model):
     """Simple database model to track event attendees."""
-
+    __name__ = 'User Table VARIABLE'
     __tablename__ = 'user'
     userId = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(80), unique=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=dt.datetime.utcnow)
+    email = db.Column(db.String(80), unique=False)
+    creationTime = db.Column(db.DateTime, nullable=False,
+                             default=dt.datetime.utcnow)
     last_name = db.Column(db.String(30), nullable=False)
     first_name = db.Column(db.String(30), nullable=False)
     password = db.Column(db.String(120), nullable=False)
     phoneNumber = db.Column(db.String(80), nullable=False)
 
-    def __init__(self, userId=None,
-                email=None,
-                password=None,
-                phoneNumber=None,
-                firstName=None,
-                lastName=None,
-                ):
+    ckeckVariable = 'My name is wajeeh CHECKING'
+
+    def __init__(self,
+                 userId=None,
+                 email=None,
+                 password=None,
+                 phoneNumber=None,
+                 firstName=None,
+                 lastName=None,
+                 ):
         self.email = email
         if password:
             self.password = security.generate_password_hash(password)
         else:
             self.password = None
         self.phoneNumber = phoneNumber
-        self.first_name = first_name
+        self.first_name = firstName
+        self.creationTime = dt.datetime.utcnow
 
     def set_password(self, password):
         """Set password."""
@@ -46,7 +53,6 @@ class User(UserMixin, db.Model):
         value = hexlify(os.urandom(256)).decode()
         self.api_key = value
 
-
     @property
     def full_name(self):
         """Full user name."""
@@ -54,4 +60,7 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         """Represent instance as a unique string."""
-        return "<User({email!r})>".format(email=self.email)
+        return '<User %r>' % (self.checkVariable)
+
+# if __name__ == '__main__':
+#     print('main method called')

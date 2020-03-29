@@ -1,9 +1,13 @@
+import os
+
+
 def get_env_variable(name):
     try:
         return os.environ[name]
     except KeyError:
         message = "Expected environment variable '{}' not set.".format(name)
         raise Exception(message)
+
 
 # the values of those depend on your setup
 POSTGRES_URL = get_env_variable("POSTGRES_URL")

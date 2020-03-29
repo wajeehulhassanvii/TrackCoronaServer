@@ -1,4 +1,5 @@
-from app import db
+from extensions import db
+
 
 class UserHealth(db.Model):
     """Simple database model the health of the user"""
@@ -7,4 +8,4 @@ class UserHealth(db.Model):
     personHealth = db.Column(db.String(80))
 
     def __init__(self, userId=None, userHealth=None):
-        self.personHealth = personHealth
+        self.personHealth = userHealth
