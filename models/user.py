@@ -11,16 +11,24 @@ from werkzeug import security
 
 class User(UserMixin, db.Model):
     """Simple database model to track event attendees."""
-    __name__ = 'User Table VARIABLE'
+    __name__ = 'User'
     __tablename__ = 'user'
-    userId = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(80), unique=False)
-    creationTime = db.Column(db.DateTime, nullable=False,
-                             default=dt.datetime.utcnow)
-    last_name = db.Column(db.String(30), nullable=False)
+    user_id = db.Column(db.Integer, primary_key=True,
+                        unique=True, index=True, autoincrement=True)
+    email = db.Column(db.String(80), unique=True, nullable=False)
     first_name = db.Column(db.String(30), nullable=False)
+    last_name = db.Column(db.String(30), nullable=False)
+    phone_number = db.Column(db.String(80), nullable=False)
     password = db.Column(db.String(120), nullable=False)
-    phoneNumber = db.Column(db.String(80), nullable=False)
+    creation_time = db.Column(db.DateTime, nullable=False,
+                              default=dt.datetime.utcnow)
+
+    user_health = db.relationship('UserHealth',
+                                  backref='the_person',
+                                  uselist=False)
+    user_last_location = db.relationship('LastLocationPostGis',
+                                         backref='the_person',
+                                         uselist=False)
 
     ckeckVariable = 'My name is wajeeh CHECKING'
 

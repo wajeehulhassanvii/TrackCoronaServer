@@ -2,18 +2,27 @@ from geoalchemy2 import Geometry
 import datetime as dt
 from extensions import db
 
+from sqlalchemy.ext.declarative import declarative_base
+Base = declarative_base()
+
 
 class LastLocationPostGis(db.Model):
     """Simple database model to track the last location of an active user."""
 
     __tablename__ = 'last_location_post_gis'
-    userId = db.Column(db.Integer, db.Sequence('user_id_seq'),
-                       primary_key=True)
-    latestPoint = db.Column(Geometry(geometry_type='POINT', srid=4326))
-    lastModified = db.Column(db.TIMESTAMP(120))
-    active = db.Column(db.BOOLEAN(120))
+    user_id = db.Column(db.Integer,
+                        primary_key=True)
+    latest_point = db.Column(Geometry(geometry_type='POINT', srid=4326),
+                             nullable=True)
+    last_modified = db.Column(db.TIMESTAMP(120), nullable=True,
+                              default=dt.datetime.utcnow)
+    active = db.Column(db.BOOLEAN(120), nullable=False)
+#   define relationships with other tables
+    person_id = db.Column(db.Integer,
+                          db.ForeignKey('user.user_id'),
+                          nullable=False)
 
     def __init__(self, point=None, active=None):
         self.point = point
-        self.lastModified = dt.datetime.utcnow
+        self.last_modified = dt.datetime.utcnow
         self.active = active
