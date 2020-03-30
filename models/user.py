@@ -3,6 +3,8 @@ from extensions import db
 from extensions import bcrypt
 
 from flask_login import UserMixin
+from flask_bcrypt import check_password_hash
+from sqlalchemy import func
 
 import datetime as dt
 from binascii import hexlify
@@ -19,9 +21,11 @@ class User(UserMixin, db.Model):
     first_name = db.Column(db.String(30), nullable=False)
     last_name = db.Column(db.String(30), nullable=False)
     phone_number = db.Column(db.String(80), nullable=False)
-    password = db.Column(db.String(120), nullable=False)
-    creation_time = db.Column(db.DateTime, nullable=False,
-                              default=dt.datetime.utcnow)
+    password = db.Column(db.String(50), nullable=False)
+    creation_time = db.Column(db.DateTime, nullable=True,
+                              server_default=func.now())
+    modification_time = db.Column(db.DateTime, nullable=True,
+                                  onupdate=func.now())
 
     user_health = db.relationship('UserHealth',
                                   backref='the_person',
@@ -33,21 +37,21 @@ class User(UserMixin, db.Model):
     ckeckVariable = 'My name is wajeeh CHECKING'
 
     def __init__(self,
-                 userId=None,
                  email=None,
                  password=None,
                  phoneNumber=None,
                  firstName=None,
-                 lastName=None,
+                 lastName=None
                  ):
         self.email = email
-        if password:
-            self.password = security.generate_password_hash(password)
-        else:
-            self.password = None
-        self.phoneNumber = phoneNumber
+        self.password = password
+        self.phone_number = phoneNumber
         self.first_name = firstName
-        self.creationTime = dt.datetime.utcnow
+        self.last_name = lastName
+        # self.creation_time = dt.datetime.utcnow
+        # self.creation_time = timezone('utc', now())
+        print(db.session.query(func.count(User.user_id)).scalar())
+        self.user_id = db.session.query(func.count(User.user_id)).scalar() + 1
 
     def set_password(self, password):
         """Set password."""
@@ -55,7 +59,7 @@ class User(UserMixin, db.Model):
 
     def check_password(self, value):
         """Check password."""
-        return bcrypt.check_password_hash(self.password, value)
+        return check_password_hash(self.password, value)
 
     def set_api_key(self):
         value = hexlify(os.urandom(256)).decode()
@@ -68,7 +72,37 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         """Represent instance as a unique string."""
-        return '<User %r>' % (self.checkVariable)
+        return '<User {} , {}, {}, {}, {}, {}>'.format(self.user_id,
+                                                       self.email,
+                                                       self.phone_number,
+                                                       self.first_name,
+                                                       self.last_name,
+                                                       self.password)
+
+    def __str__(self):
+        """Represent instance as a unique string."""
+        return '<User {} , {}, {}, {}, {}, {}>'.format(str(self.user_id),
+                                                       str(self.email),
+                                                       str(self.phone_number),
+                                                       str(self.first_name),
+                                                       str(self.last_name),
+                                                       str(self.password))
 
 # if __name__ == '__main__':
 #     print('main method called')
+
+
+'''
+-- Auto-generated SQL script #202003300908
+SQL INSERTION
+-- Auto-generated SQL script #202003301046
+INSERT INTO public."user" (user_id,email,first_name,
+last_name,phone_number,"password",creation_time,
+modification_time)
+VALUES (NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL);
+
+'''
+
+'''
+UserMixin supplies few helper method from flask_user
+'''

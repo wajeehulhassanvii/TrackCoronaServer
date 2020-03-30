@@ -26,10 +26,12 @@ login_manager = LoginManager(app)
 
 # take us to login page if we are not logged in and try to visit protected page
 login_manager.login_view = '/login'
-login_manager.login_message = 'Cannot login sorry!'
+login_manager.login_message = 'please! login in first...'
+login_manager.fresh_view = '/login'
+login_manager.needs_refresh_message = 'login in again please!!!'
 
 # initialize bcrypt
-bcrypt = Bcrypt()
+bcrypt = Bcrypt(app)
 # initialize database migration management
 
 # initialize the database connection
