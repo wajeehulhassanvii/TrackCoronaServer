@@ -19,7 +19,7 @@ class LastLocationPostGis(db.Model):
     active = db.Column(db.BOOLEAN(120), nullable=False)
 #   define relationships with other tables
     person_id = db.Column(db.Integer,
-                          db.ForeignKey('user.user_id'),
+                          db.ForeignKey('user.id'),
                           nullable=False)
 
     def __init__(self, point=None, active=None):

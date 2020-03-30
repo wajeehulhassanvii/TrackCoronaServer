@@ -15,13 +15,13 @@ class User(UserMixin, db.Model):
     """Simple database model to track event attendees."""
     __name__ = 'User'
     __tablename__ = 'user'
-    user_id = db.Column(db.Integer, primary_key=True,
-                        unique=True, index=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True,
+                   unique=True, index=True, autoincrement=True)
     email = db.Column(db.String(80), unique=True, nullable=False)
     first_name = db.Column(db.String(30), nullable=False)
     last_name = db.Column(db.String(30), nullable=False)
     phone_number = db.Column(db.String(80), nullable=False)
-    password = db.Column(db.String(50), nullable=False)
+    password = db.Column(db.String(100), nullable=False)
     creation_time = db.Column(db.DateTime, nullable=True,
                               server_default=func.now())
     modification_time = db.Column(db.DateTime, nullable=True,
@@ -50,8 +50,8 @@ class User(UserMixin, db.Model):
         self.last_name = lastName
         # self.creation_time = dt.datetime.utcnow
         # self.creation_time = timezone('utc', now())
-        print(db.session.query(func.count(User.user_id)).scalar())
-        self.user_id = db.session.query(func.count(User.user_id)).scalar() + 1
+        print(db.session.query(func.count(User.id)).scalar())
+        self.id = db.session.query(func.count(User.id)).scalar() + 1
 
     def set_password(self, password):
         """Set password."""
@@ -72,7 +72,7 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         """Represent instance as a unique string."""
-        return '<User {} , {}, {}, {}, {}, {}>'.format(self.user_id,
+        return '<User {} , {}, {}, {}, {}, {}>'.format(self.id,
                                                        self.email,
                                                        self.phone_number,
                                                        self.first_name,
@@ -81,7 +81,7 @@ class User(UserMixin, db.Model):
 
     def __str__(self):
         """Represent instance as a unique string."""
-        return '<User {} , {}, {}, {}, {}, {}>'.format(str(self.user_id),
+        return '<User {} , {}, {}, {}, {}, {}>'.format(str(self.id),
                                                        str(self.email),
                                                        str(self.phone_number),
                                                        str(self.first_name),

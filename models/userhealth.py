@@ -8,7 +8,7 @@ class UserHealth(db.Model):
     user_health = db.Column(db.String(80), nullable=False)
 #   Define relation with other tables
     person_id = db.Column(db.Integer,
-                          db.ForeignKey('user.user_id'),
+                          db.ForeignKey('user.id'),
                           nullable=False)
 
     def __init__(self, user_id=None, user_health=None):
