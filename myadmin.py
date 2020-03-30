@@ -33,7 +33,8 @@ class MyAdminIndexView(AdminIndexView):
 
 
 # initialize admin with bootstrap3
-admin = Admin(app, template_mode="bootstrap3", index_view=MyAdminIndexView())
+# admin = Admin(app, template_mode="bootstrap3", index_view=MyAdminIndexView())
+admin = Admin(app, template_mode="bootstrap3")
 admin.add_view(MyModelView(User, db.session))
 
 
