@@ -56,10 +56,10 @@ def send_registration_data():
             phone_exists = User.query.filter_by(phone_number=phone_number).first()
             if email_exists is not None:
                 return jsonify({"message": str("email\
-                     associated with another account")}), 400
+                    associated with another account")}), 400
             if phone_exists is not None:
                 return jsonify({"message": str("phone number\
-                     associated with another account")}), 400
+                    associated with another account")}), 400
         except KeyError as err:
             print(err)
             return jsonify({"message": str("key error")}), 400
@@ -90,7 +90,7 @@ def loginUser():
                     # load_user(email)
                     # login_user(db_data)
                     return jsonify({"message": str("login\
-                     successful")}), 200
+                        successful")}), 200
             else:
                 return jsonify({"message": str("email\
                      does not have any associated account")}), 400
