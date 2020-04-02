@@ -35,7 +35,7 @@ def view_registered_guests():
 @app.route('/onlyForLoginInUser')
 def onlyForLoginInUser():
     return 'you must be logged in {},\
-        current_user is user object'.format(current_user)
+        current_user is user object'.format(current_user), 200
 
 
 @app.route('/sendregistrationdata', methods=['POST', 'GET'])
@@ -75,22 +75,40 @@ def send_registration_data():
         function working")}), 200
 
 
+@login_manager.user_loader
+def load_user(id):
+    return User.query.filter_by(id=id).first()
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def loginUser():
     if request.method == 'POST':
         request_data = request.get_json(force=True)
         try:
             email = str(request_data['email'])
-            db_data = User.query.filter_by(email=email).first()
+            user = User.query.filter_by(email=email).first()
+            remember_me = request_data['rememberMe']
             print('email {}'.format(email))
-            if db_data is not None:
-                password = str(request_data['password'])
-                if db_data.check_password(password):
-                    session['logged_in'] = True
-                    # load_user(email)
-                    # login_user(db_data)
+            print(str(user))
+            if user is not None:
+                password = request_data['password']
+                if user.check_password(password):
+                    # session['logged_in'] = True
+                    user.authenticated = True
+                    db.session.add(user)
+                    db.session.commit()
+                    if remember_me:
+                        login_user(user, remember=True)
+                        print(' will remember')
+                    else:
+                        login_user(user, remember=False)
+                        print(' will not remember')
+                    # load_user(user)
                     return jsonify({"message": str("login\
                         successful")}), 200
+                else:
+                    return jsonify({"message": str("password\
+                     incorrect")}), 400
             else:
                 return jsonify({"message": str("email\
                      does not have any associated account")}), 400
@@ -98,7 +116,7 @@ def loginUser():
             print(err)
             return jsonify({"message": str("Key Error\
                 during login")}), 400
-        return jsonify({"message": str("Account successfully created")}), 200
+        return jsonify({"message": str("Post Login Completed")}), 200
 
     if request.method == 'GET':
         print('inside get method')
@@ -106,15 +124,24 @@ def loginUser():
         function working")}), 200
 
 
-@login_manager.user_loader
-def load_user(email):
-    return User.query.filter_by(email=email).first()
-
-
+@app.route('/logout', methods=['GET'])
 @login_required
-@app.route('/protectedroute', methods=['POST', 'GET'])
-def protected_route():
-    return jsonify({"message": str("you are in protected area")}), 200
+def logout():
+    print('clearing user login from sessions')
+    # session['logged_in'] = False
+    user = current_user
+    user.authenticated = False
+    db.session.add(user)
+    db.session.commit()
+    logout_user()
+    return jsonify({"message": str("you are logged\
+        out\nstay home stay safe!!!")}), 401
+
+
+@app.route('/fresh_login')
+def fresh_login():
+    ''' requires fresh login for user account value modification'''
+    return jsonify({"message": str("Fresh Login!!!")})
 
 
 @app.route('/sendFakeData', methods=['POST', 'GET'])
@@ -149,18 +176,51 @@ def sendFakeData():
         return jsonify({"message": str("GET function working")})
 
 
-@app.route('/logout')
+@app.route('/getuserswithindiameter', methods=['POST', 'GET'])
 @login_required
-def logout():
-    session['logged_in'] = False
-    logout_user()
-    return jsonify({"message": str("you are logged out\nstay home stay safe!!!")})
+def get_users_within_diameter():
+    pass
 
 
-@app.route('/fresh_login')
-def fresh_login():
-    ''' requires fresh login for user account value modification'''
-    return jsonify({"message": str("Fresh Login!!!")})
+@app.route('/testgeolocation', methods=['POST', 'GET'])
+@login_required
+def test_geolocation():
+    '''
+    get the geocoordinates of all the people in close proximity
+    error-> 302: redirect when no login, otherwise success : 200
+    '''
+    if request.method == 'POST':
+        request_data = request.get_json(force=True)
+        print('inside post')
+        try:
+            main_user_latitude = request_data['userLatitude']
+            print(main_user_latitude)
+            main_user_longitude = request_data['userLongitude']
+            print(main_user_longitude)
+            return jsonify({"message": str("in side post")}), 200
+        except KeyError as err:
+            print(err)
+            return jsonify({"message": str(err)}), 400
+
+    return jsonify({"message": str("you are in protected area")}), 200
+
+
+@app.route('/updatemap', methods=['POST', 'GET'])
+@login_required
+def update_map():
+    pass
+
+
+@app.route('/updatestats', methods=['POST', 'GET'])
+@login_required
+def update_stats():
+    pass
+
+
+@login_required
+@app.route('/protectedroute', methods=['POST', 'GET'])
+def protected_route():
+    return jsonify({"message": str("you are in protected area")}), 200
 
 
 '''

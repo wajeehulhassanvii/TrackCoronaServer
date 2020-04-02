@@ -12,7 +12,8 @@ class LastLocationPostGis(db.Model):
     __tablename__ = 'last_location_post_gis'
     user_id = db.Column(db.Integer,
                         primary_key=True)
-    latest_point = db.Column(Geometry(geometry_type='POINT', srid=4326),
+    latest_point = db.Column(Geometry(geometry_type='POINT',
+                                      srid=4326),
                              nullable=True)
     last_modified = db.Column(db.TIMESTAMP(120), nullable=True,
                               default=dt.datetime.utcnow)
