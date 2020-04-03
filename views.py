@@ -31,13 +31,6 @@ def view_registered_guests():
 #     return User.query.get(int(user_id))
 
 
-@login_required
-@app.route('/onlyForLoginInUser')
-def onlyForLoginInUser():
-    return 'you must be logged in {},\
-        current_user is user object'.format(current_user), 200
-
-
 @app.route('/sendregistrationdata', methods=['POST', 'GET'])
 def send_registration_data():
     if request.method == 'POST':
@@ -76,8 +69,9 @@ def send_registration_data():
 
 
 @login_manager.user_loader
-def load_user(id):
-    return User.query.filter_by(id=id).first()
+def load_user(user):
+    print('inside user loader')
+    return User.query.filter_by(id=user.id).first()
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -93,17 +87,16 @@ def loginUser():
             if user is not None:
                 password = request_data['password']
                 if user.check_password(password):
-                    # session['logged_in'] = True
-                    user.authenticated = True
+                    user.is_authenticated = True
                     db.session.add(user)
                     db.session.commit()
-                    if remember_me:
-                        login_user(user, remember=True)
-                        print(' will remember')
-                    else:
-                        login_user(user, remember=False)
-                        print(' will not remember')
-                    # load_user(user)
+                    login_user(user, remember=remember_me)
+                    session['logged_in'] = True
+                    if session.get('logged_in'):
+                        if session['logged_in'] is True:
+                            print('from session' + str(session["logged_in"]))
+                            print(current_user)
+                    load_user(user)
                     return jsonify({"message": str("login\
                         successful")}), 200
                 else:
@@ -130,7 +123,7 @@ def logout():
     print('clearing user login from sessions')
     # session['logged_in'] = False
     user = current_user
-    user.authenticated = False
+    user.is_authenticated = False
     db.session.add(user)
     db.session.commit()
     logout_user()
@@ -183,7 +176,7 @@ def get_users_within_diameter():
 
 
 @app.route('/testgeolocation', methods=['POST', 'GET'])
-@login_required
+# @login_required
 def test_geolocation():
     '''
     get the geocoordinates of all the people in close proximity

@@ -26,8 +26,8 @@ class User(UserMixin, db.Model):
                               server_default=func.now())
     modification_time = db.Column(db.DateTime, nullable=True,
                                   onupdate=func.now())
-    authenticated = db.Column(db.Boolean, default=False)
-    active = db.Column(db.Boolean, default=True)
+    is_authenticated = db.Column(db.Boolean, default=False)
+    is_active = db.Column(db.Boolean, default=True)
 
     user_health = db.relationship('UserHealth',
                                   backref='the_person',
@@ -50,8 +50,8 @@ class User(UserMixin, db.Model):
         self.phone_number = phoneNumber
         self.first_name = firstName
         self.last_name = lastName
-        self.active = True
-        self.authenticated = False
+        self.is_active = True
+        self.is_authenticated = False
         # self.creation_time = dt.datetime.utcnow
         # self.creation_time = timezone('utc', now())
         print(db.session.query(func.count(User.id)).scalar())
@@ -71,7 +71,7 @@ class User(UserMixin, db.Model):
 
     def is_active(self):
         """True, as all users are active."""
-        return self.active
+        return self.is_active
 
     def get_id(self):
         """Return the email address to satisfy Flask-Login's requirements."""
@@ -79,7 +79,7 @@ class User(UserMixin, db.Model):
 
     def is_authenticated(self):
         """Return True if the user is authenticated."""
-        return self.authenticated
+        return self.is_authenticated
 
     def is_anonymous(self):
         """False, as anonymous users aren't supported."""
