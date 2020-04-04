@@ -16,7 +16,6 @@ admin = User(username='admin', email='admin@example.com')
 >>> guest = User(username='guest', email='guest@example.com')
 '''
 
-
 # import view apis
 import views   # noqa: E402
 import myadmin

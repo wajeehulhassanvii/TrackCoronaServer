@@ -15,8 +15,8 @@ class User(UserMixin, db.Model):
     """Simple database model to track event attendees."""
     __name__ = 'User'
     __tablename__ = 'user'
-    id = db.Column(db.Integer, primary_key=True,
-                   unique=True, index=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True)
+    # , index=True, autoincrement=True)
     email = db.Column(db.String(80), unique=True, nullable=False)
     first_name = db.Column(db.String(30), nullable=False)
     last_name = db.Column(db.String(30), nullable=False)
@@ -26,8 +26,7 @@ class User(UserMixin, db.Model):
                               server_default=func.now())
     modification_time = db.Column(db.DateTime, nullable=True,
                                   onupdate=func.now())
-    is_authenticated = db.Column(db.Boolean, default=False)
-    is_active = db.Column(db.Boolean, default=True)
+    active = db.Column(db.Boolean, default=True)
 
     user_health = db.relationship('UserHealth',
                                   backref='the_person',
@@ -35,8 +34,6 @@ class User(UserMixin, db.Model):
     user_last_location = db.relationship('LastLocationPostGis',
                                          backref='the_person',
                                          uselist=False)
-
-    ckeckVariable = 'My name is wajeeh CHECKING'
 
     def __init__(self,
                  email=None,
@@ -50,8 +47,8 @@ class User(UserMixin, db.Model):
         self.phone_number = phoneNumber
         self.first_name = firstName
         self.last_name = lastName
-        self.is_active = True
-        self.is_authenticated = False
+        self.active = True
+        # self.is_authenticated = True
         # self.creation_time = dt.datetime.utcnow
         # self.creation_time = timezone('utc', now())
         print(db.session.query(func.count(User.id)).scalar())
@@ -69,22 +66,6 @@ class User(UserMixin, db.Model):
         value = hexlify(os.urandom(256)).decode()
         self.api_key = value
 
-    def is_active(self):
-        """True, as all users are active."""
-        return self.is_active
-
-    def get_id(self):
-        """Return the email address to satisfy Flask-Login's requirements."""
-        return self.email
-
-    def is_authenticated(self):
-        """Return True if the user is authenticated."""
-        return self.is_authenticated
-
-    def is_anonymous(self):
-        """False, as anonymous users aren't supported."""
-        return False
-
     @property
     def full_name(self):
         """Full user name."""
@@ -92,7 +73,7 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         """Represent instance as a unique string."""
-        return '<User {} , {}, {}, {}, {}, {}>'.format(self.id,
+        return '<Object User {} , {}, {}, {}, {}, {}>'.format(self.id,
                                                        self.email,
                                                        self.phone_number,
                                                        self.first_name,

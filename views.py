@@ -1,34 +1,25 @@
 
+from extensions import app
+from extensions import db
+from extensions import session
 from extensions import login_manager
+
+from flask import jsonify, request
 from flask_login import logout_user
 from flask_login import current_user
 from flask_login import login_user
 from flask_login import login_required
 from flask_login import fresh_login_required
-from flask import render_template
-from flask import session, redirect, jsonify, request
-import datetime as dt
 
-from extensions import app
-from extensions import db
+# from geoalchemy2 import ST_DFullyWithin
+# from geoalchemy2 import WKBElement
+# from geoalchemy2 import WKSpatialElement
+# from geoalchemy2.functions import functions
+# from sqlalchemy import func
 
 from models.user import User
+from models.lastlocationpostgis import LastLocationPostGis
 from flask_bcrypt import generate_password_hash
-
-
-@app.route('/')
-def view_registered_guests():
-    # from models.User import User
-    # person = User.query.all()
-    # replaced
-    # guests = Guest.query.all()
-    # return render_template('guest_list.html', guests=guests)
-    return 'all user fetched method called'
-
-
-# @login_manager.user_loader
-# def load_user(user_id):
-#     return User.query.get(int(user_id))
 
 
 @app.route('/sendregistrationdata', methods=['POST', 'GET'])
@@ -68,12 +59,6 @@ def send_registration_data():
         function working")}), 200
 
 
-@login_manager.user_loader
-def load_user(user):
-    print('inside user loader')
-    return User.query.filter_by(id=user.id).first()
-
-
 @app.route('/login', methods=['GET', 'POST'])
 def loginUser():
     if request.method == 'POST':
@@ -87,7 +72,6 @@ def loginUser():
             if user is not None:
                 password = request_data['password']
                 if user.check_password(password):
-                    user.is_authenticated = True
                     db.session.add(user)
                     db.session.commit()
                     login_user(user, remember=remember_me)
@@ -96,7 +80,7 @@ def loginUser():
                         if session['logged_in'] is True:
                             print('from session' + str(session["logged_in"]))
                             print(current_user)
-                    load_user(user)
+                    # load_user(user.id)
                     return jsonify({"message": str("login\
                         successful")}), 200
                 else:
@@ -117,8 +101,32 @@ def loginUser():
         function working")}), 200
 
 
+@app.route('/checkcurrentuser')
+def check_current_user():
+    if current_user:
+        print('{}'.format(current_user.email))
+        return current_user.email
+    return 'no user'
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    """Check if user is logged-in on every page load."""
+    if user_id is not None:
+        return User.query.get(user_id)
+    return None
+
+
+@login_manager.unauthorized_handler
+def unauthorized():
+    """Redirect unauthorized users to Login page."""
+    print(' user not loaded')
+    return jsonify({"message": str("did not loaded\
+        user")}), 200
+
+
 @app.route('/logout', methods=['GET'])
-@login_required
+# @login_required
 def logout():
     print('clearing user login from sessions')
     # session['logged_in'] = False
@@ -131,89 +139,51 @@ def logout():
         out\nstay home stay safe!!!")}), 401
 
 
-@app.route('/fresh_login')
-def fresh_login():
-    ''' requires fresh login for user account value modification'''
-    return jsonify({"message": str("Fresh Login!!!")})
-
-
-@app.route('/sendFakeData', methods=['POST', 'GET'])
-def sendFakeData():
-    if request.method == 'POST':
-        ret = {
-            'object': 'user',
-            'action': 'login',
-            # 'server_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'payload': []
-        }
-        print('data {}'.format(request))
-        data = request.get_json(force=True)
-        print('data {}'.format(data))
-        if data is None:
-            print('no data found akhi')
-            return jsonify(), 400
-        else:
-            try:
-                email = data['email']
-                person = User.query.filter_by(email=email).first()
-                if person is None:
-                    person = 'no person found in database'
-                password = data['password']
-            except KeyError as err:
-                print(err)
-                return jsonify(ret), 400
-        return jsonify({"message": str("post function working\
-            {} and {} and {}".format(email, password, person))})
-
-    if request.method == 'GET':
-        return jsonify({"message": str("GET function working")})
-
-
 @app.route('/getuserswithindiameter', methods=['POST', 'GET'])
 @login_required
 def get_users_within_diameter():
-    pass
-
-
-@app.route('/testgeolocation', methods=['POST', 'GET'])
-# @login_required
-def test_geolocation():
     '''
     get the geocoordinates of all the people in close proximity
     error-> 302: redirect when no login, otherwise success : 200
     '''
     if request.method == 'POST':
+        if session.get('logged_in'):
+            if session['logged_in'] is True:
+                print(current_user)
+        else:
+            print('not in session')
         request_data = request.get_json(force=True)
         print('inside post')
+        userActive = True
         try:
             main_user_latitude = request_data['userLatitude']
-            print(main_user_latitude)
             main_user_longitude = request_data['userLongitude']
-            print(main_user_longitude)
+            # user_point_geoalchemy = func.Geometry(func.ST_GeographyFromText('POINT({} {})'.format(main_user_longitude, main_user_latitude)))
+
+            # we will convert the kilometer distance into degrees
+            # distance = d * 0.014472
+            # 111.32 km/degree (the accepted figure is 111.325 km).
+            # #1 mile = 0.014472 degrees
+            # wkb_point = WKBSpatialElement( buffer( point.wkb ), 4326 )
+            # INSERT OR UPDATE THE USER LOCATION AND ITS CURRENT STATUS
+            print(current_user)
+            if current_user:
+                print('there is a user {}'.format(current_user))
+            # print(LastLocationPostGis.query.filter(user_id=current_user.id))
+            # if count_user:
+            #     # here insert the lastlocation because the location doesn't exist
+            #     last_location = LastLocationPostGis(user_point_geoalchemy, main_user_active)
+            #     db.session.add(last_location)
+            #     db.session.commit()
+            # users = db.query(LastLo).\
+            #     filter(func.ST_DWithin(User.location,  wkb_element, distance)).all()
+            print('function complete inside try block')
             return jsonify({"message": str("in side post")}), 200
         except KeyError as err:
             print(err)
             return jsonify({"message": str(err)}), 400
 
-    return jsonify({"message": str("you are in protected area")}), 200
-
-
-@app.route('/updatemap', methods=['POST', 'GET'])
-@login_required
-def update_map():
-    pass
-
-
-@app.route('/updatestats', methods=['POST', 'GET'])
-@login_required
-def update_stats():
-    pass
-
-
-@login_required
-@app.route('/protectedroute', methods=['POST', 'GET'])
-def protected_route():
-    return jsonify({"message": str("you are in protected area")}), 200
+    return jsonify({"message": str("you are in a protected area")}), 200
 
 
 '''
@@ -246,4 +216,92 @@ str('asd').encode('utf-8')
 
 '''
 to connect flask_login to user we use user_loader
+'''
+
+
+'''
+eg 1
+updating in sqlalchemy
+user.no_of_logins += 1
+session.commit()
+
+eg2
+session.query().\
+        filter(User.username == form.username.data).\
+        update({"no_of_logins": (User.no_of_logins +1)})
+    session.commit()
+
+eg3
+_______
+INSERT one
+newToner = Toner(toner_id = 1,
+                    toner_color = 'blue',
+                    toner_hex = '#0F85FF')
+dbsession.add(newToner)
+dbsession.flush()
+_______
+INSERT multiple
+newToner1 = Toner(toner_id = 1,
+                    toner_color = 'blue',
+                    toner_hex = '#0F85FF')
+newToner2 = Toner(toner_id = 2,
+                    toner_color = 'red',
+                    toner_hex = '#F01731')
+
+dbsession.add_all([newToner1, newToner2])
+dbsession.flush()
+___________
+UPDATE
+q = dbsession.query(Toner)
+q = q.filter(Toner.toner_id==1)
+record = q.one()
+record.toner_color = 'Azure Radiance'
+
+dbsession.flush()
+
+or using a fancy one-liner using MERGE
+
+record = dbsession.merge(Toner( **kwargs))
+--------------------------------------
+ANOTHER EXAMPLE
+b = create_engine('sqlite:////temp/test123.db')
+metadata.create_all(db)
+
+sm = orm.sessionmaker(bind=db, autoflush=True, autocommit=True, expire_on_commit=True)
+session = orm.scoped_session(sm)
+
+#create new Product record:
+if session.query(Product).filter(Product.id==1).count()==0:
+    new_prod = Product("1","Product1")
+    print "Creating new product: %r" % new_prod
+    session.add(new_prod)
+    session.flush()
+else:
+    print "product with id 1 already exists: %r" % session.query(Product).filter(Product.id==1).one()
+
+print "loading Product with id=1"
+prod = session.query(Product).filter(Product.id==1).one()
+print "current name: %s" % prod.name
+prod.name = "new name"
+
+print prod
+
+
+prod.name = 'test'
+
+session.add(prod)
+session.flush()
+
+print prod
+------------------------------------------
+
+class geoalchemy2.elements.WKTElement
+
+Usage examples:
+
+wkt_element_1 = WKTElement('POINT(5 45)')
+wkt_element_2 = WKTElement('POINT(5 45)', srid=4326)
+wkt_element_3 = WKTElement('SRID=4326;POINT(5 45)', extended=True)
+
+
 '''

@@ -23,7 +23,8 @@ class LastLocationPostGis(db.Model):
                           db.ForeignKey('user.id'),
                           nullable=False)
 
-    def __init__(self, point=None, active=None):
+    def __init__(self, point=None, active=None, person_id=None):
         self.point = point
         self.last_modified = dt.datetime.utcnow
         self.active = active
+        self.person_id = person_id
