@@ -239,7 +239,7 @@ def get_users_within_diameter():
                 # for e in temp_list_users_conditions:
                 #     print(e.user_health)
 
-                return jsonify(message=str("in side post"),
+                return jsonify(message=str("fetching user health and latest location completed..."),
                                list_of_users=[e.serialize() for e in list_of_users],
                                list_of_user_conditions=[e.serialize() for e in temp_list_users_conditions]), 200
             else:
