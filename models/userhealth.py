@@ -17,3 +17,10 @@ class UserHealth(db.Model):
         self.user_id = person_id
         self.user_health = user_health
         self.person_id = person_id
+
+    def serialize(self):
+        return {
+                    'user_id': self.user_id,
+                    'user_health': self.user_health,
+                    'person_id': self.person_id,
+                }

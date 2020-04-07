@@ -20,22 +20,19 @@ from blacklist_helpers import (
     is_token_blacklisted, add_token_to_blacklist
 )
 
+from sqlalchemy.sql import table, column
 from sqlalchemy import func
-from geoalchemy2 import WKBElement, WKTElement
+from geoalchemy2 import WKTElement
 from geoalchemy2.shape import from_shape, to_shape
 # from geoalchemy2 import WKBSpatialElement
-from sqlalchemy import cast
 from shapely.geometry.point import Point
 from decimal import Decimal
 
-from extensions import json
 from flask_json import FlaskJSON, JsonError, json_response, as_json
 
 # from geoalchemy2 import ST_DFullyWithin
 # from geoalchemy2 import WKBElement
 # from geoalchemy2 import WKSpatialElement
-from geoalchemy2 import functions as geoalchemy_func
-# from sqlalchemy import func
 
 from models.userhealth import UserHealth
 from models.user import User
@@ -227,14 +224,24 @@ def get_users_within_diameter():
             list_of_users_filter = func.ST_DWithin(
                 LastLocationPostGis.latest_point, point_wkt,
                 1000)
-            list_of_users = db.session.query(LastLocationPostGis).filter(list_of_users_filter).all()
+            list_of_users = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.active==True).filter(list_of_users_filter).all()
 
             if len(list_of_users) > 0:
-                print('list of users is more than 1')
+                print('list of users {}'.format(len(list_of_users)))
                 print(str(to_shape(list_of_users[0].latest_point)))
                 print(list_of_users[0].latest_point)
+
+                temp_list_user_ids = []
+                for every_user in list_of_users:
+                    temp_list_user_ids.append(every_user.person_id)
+
+                temp_list_users_conditions = db.session.query(UserHealth).filter(UserHealth.person_id.in_(temp_list_user_ids)).all()
+                # for e in temp_list_users_conditions:
+                #     print(e.user_health)
+
                 return jsonify(message=str("in side post"),
-                               list_of_users=[e.serialize() for e in list_of_users]), 200
+                               list_of_users=[e.serialize() for e in list_of_users],
+                               list_of_user_conditions=[e.serialize() for e in temp_list_users_conditions]), 200
             else:
                 return jsonify(message=str("in side post"),
                                list_of_users=[]), 200
