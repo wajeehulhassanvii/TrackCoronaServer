@@ -31,3 +31,12 @@ class LastLocationPostGis(db.Model):
         self.active = True
         self.person_id = person_id
         self.user_id = person_id
+
+    def serialize(self):
+        return {
+                    'user_id': self.user_id,
+                    'latest_point': str(self.latest_point),
+                    'last_modified': self.last_modified,
+                    'active': self.active,
+                    'person_id': self.person_id,
+                }

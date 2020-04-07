@@ -27,6 +27,7 @@ app = Flask(
 app.config.from_pyfile('config.cfg')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 
+
 # INITIALIZE DIFFERENT GLOBAL VARIABLES
 json = FlaskJSON(app)
 # initialize toolbar
