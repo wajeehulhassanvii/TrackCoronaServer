@@ -5,31 +5,11 @@ from extensions import session
 from extensions import login_manager
 
 from flask import jsonify, request
-from flask_jwt_extended import create_access_token
-from flask_jwt_extended import create_refresh_token
-from flask_jwt_extended import jwt_refresh_token_required
-from flask_jwt_extended import get_jwt_identity
-from flask_jwt_extended import jwt_required
-from flask_jwt_extended import get_raw_jwt
-from flask_jwt_extended import get_jwt_claims
-from flask_jwt_extended import fresh_jwt_required
-
-from exceptions import TokenNotFound
-
-from blacklist_helpers import (
-    is_token_blacklisted, add_token_to_blacklist
-)
-
-from sqlalchemy import func
-from geoalchemy2 import WKBElement, WKTElement
-from geoalchemy2.shape import from_shape
-# from geoalchemy2 import WKBSpatialElement
-from sqlalchemy import cast
-from shapely.geometry.point import Point
-from decimal import Decimal
-
-from extensions import json
-from flask_json import FlaskJSON, JsonError, json_response, as_json
+from flask_login import logout_user
+from flask_login import current_user
+from flask_login import login_user
+from flask_login import login_required
+from flask_login import fresh_login_required
 
 # from geoalchemy2 import ST_DFullyWithin
 # from geoalchemy2 import WKBElement
@@ -37,7 +17,6 @@ from flask_json import FlaskJSON, JsonError, json_response, as_json
 # from geoalchemy2.functions import functions
 # from sqlalchemy import func
 
-from models.userhealth import UserHealth
 from models.user import User
 from models.lastlocationpostgis import LastLocationPostGis
 from flask_bcrypt import generate_password_hash
@@ -87,20 +66,23 @@ def loginUser():
         try:
             email = str(request_data['email'])
             user = User.query.filter_by(email=email).first()
-            # remember_me = request_data['rememberMe']
+            remember_me = request_data['rememberMe']
             print('email {}'.format(email))
             print(str(user))
             if user is not None:
                 password = request_data['password']
                 if user.check_password(password):
-                    access_token = create_access_token(identity=user.id, fresh=True)
-                    refresh_token = create_refresh_token(user.id)
-                    return jsonify({
-                        "message": str("login\
-                        successful"),
-                        "access_token": access_token,
-                        "refresh_token": refresh_token
-                                    }), 200
+                    db.session.add(user)
+                    db.session.commit()
+                    login_user(user, remember=remember_me)
+                    session['logged_in'] = True
+                    if session.get('logged_in'):
+                        if session['logged_in'] is True:
+                            print('from session' + str(session["logged_in"]))
+                            print(current_user)
+                    # load_user(user.id)
+                    return jsonify({"message": str("login\
+                        successful")}), 200
                 else:
                     return jsonify({"message": str("password\
                      incorrect")}), 400
@@ -119,137 +101,89 @@ def loginUser():
         function working")}), 200
 
 
-# Standard refresh endpoint. A blacklisted refresh token
-# will not be able to access this endpoint
-@app.route('/refresh', methods=['POST'])
-@jwt_refresh_token_required
-def refresh():
-    print('token refreshed')
-    current_user = get_jwt_identity()
-    access_token = create_access_token(identity=current_user)
-    ret = {
-        'access_token': access_token
-    }
-    return jsonify(ret), 201
+@app.route('/checkcurrentuser')
+def check_current_user():
+    if current_user:
+        print('{}'.format(current_user.email))
+        return current_user.email
+    return 'no user'
 
 
-# def check_if_token_in_blacklist(decrypted_token):
-#     jti = decrypted_token['jti']
-#     return models.RevokedTokenModel.is_jti_blacklisted(jti)
+@login_manager.user_loader
+def load_user(user_id):
+    """Check if user is logged-in on every page load."""
+    if user_id is not None:
+        return User.query.get(user_id)
+    return None
 
 
-# check token
-@app.route('/checktoken', methods=['GET'])
-@jwt_required
-def get_tokens():
-    user_identity = get_jwt_identity()
-    all_tokens = get_user_tokens(user_identity)
-    ret = [token.to_dict() for token in all_tokens]
-    return jsonify(ret), 200
+@login_manager.unauthorized_handler
+def unauthorized():
+    """Redirect unauthorized users to Login page."""
+    print(' user not loaded')
+    return jsonify({"message": str("did not loaded\
+        user")}), 200
 
 
-@app.route('/logout', methods=['DELETE'])
-@jwt_required
-def logout(token_id):
-    ''' must provide access_token and refresh_token to logout the user
-    upon logining in again, new access_token and refresh_token
-    will be issued'''
-
+@app.route('/logout', methods=['GET'])
+# @login_required
+def logout():
     print('clearing user login from sessions')
-
-    # Get and verify the desired revoked status from the body
-    json_data = request.get_json(force=True)
-    access_token = json_data['access_token']
-    refresh_token = json_data['refresh_token']
-    # Store the tokens in our store with a status of not currently revoked.
-    add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'])
-    add_token_to_blacklist(refresh_token, app.config['JWT_IDENTITY_CLAIM'])
-
+    # session['logged_in'] = False
+    user = current_user
+    user.is_authenticated = False
+    db.session.add(user)
+    db.session.commit()
+    logout_user()
     return jsonify({"message": str("you are logged\
         out\nstay home stay safe!!!")}), 401
 
 
 @app.route('/getuserswithindiameter', methods=['POST', 'GET'])
-# @jwt_required
+@login_required
 def get_users_within_diameter():
     '''
     get the geocoordinates of all the people in close proximity
     error-> 302: redirect when no login, otherwise success : 200
     '''
-    print('before post method')
     if request.method == 'POST':
+        if session.get('logged_in'):
+            if session['logged_in'] is True:
+                print(current_user)
+        else:
+            print('not in session')
         request_data = request.get_json(force=True)
         print('inside post')
+        userActive = True
         try:
-            main_user_latitude = request_data["userLatitude"]
-            main_user_longitude = request_data["userLongitude"]
-            main_user_condition = request_data["personCondition"]
-            current_user_id = 1
+            main_user_latitude = request_data['userLatitude']
+            main_user_longitude = request_data['userLongitude']
+            # user_point_geoalchemy = func.Geometry(func.ST_GeographyFromText('POINT({} {})'.format(main_user_longitude, main_user_latitude)))
 
-            # Also check if active
-
-            temp_lat = Decimal(main_user_latitude)
-            temp_lon = Decimal(main_user_longitude)
-            kms = 1
-            approximate_degree_distance = kilometersToDegrees(kms)
-            point = Point(temp_lon, temp_lat)
-            point_wkt = WKTElement('SRID=4326;POINT({} {})'.format(temp_lon, temp_lat), srid=4326)
-            print(point)
-            # print(point_string)
-            # update UserHealth with users health
-            user_health_instance = db.session.query(UserHealth).filter(UserHealth.person_id == current_user_id).first()
-            if(user_health_instance):
-                user_health_instance.user_health = main_user_condition
-                db.session.add(user_health_instance)
-                db.session.commit()
-            else:
-                db.session.add(UserHealth(main_user_condition, current_user_id))
-                db.session.commit()
-
-            # update LastLocationGis with users last location
-            last_loc_instance = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id == current_user_id).first()
-            if(last_loc_instance):
-                print('instance found')
-                last_loc_instance.latest_point = point_wkt
-                db.session.add(last_loc_instance)
-                db.session.commit()
-            else:
-                print('instance not found')
-                db.session.add(LastLocationPostGis(point_wkt, current_user_id))
-                db.session.commit()
-            # working
-
-            # Find all points and remove our own point
-            # wkb_element = from_shape(point)
-            print(point_wkt)
-            # wkb_point = WKBSpatialElement(buffer(point.wkb ), 4326 )
-            list_of_users_filter = func.ST_DWithin(
-                LastLocationPostGis.latest_point, point_wkt,
-                1000)
-            list_of_users = db.session.query(LastLocationPostGis).filter(list_of_users_filter).all()
-
-            if len(list_of_users) > 0:
-                print('list of users is more than 1')
-                return jsonify({"message": str("in side post"),
-                                "list_of_users": list_of_users}), 401
-            else:
-                return jsonify({"message": str("list of users empty"),
-                                "list_of_users": []}), 401
+            # we will convert the kilometer distance into degrees
+            # distance = d * 0.014472
+            # 111.32 km/degree (the accepted figure is 111.325 km).
+            # #1 mile = 0.014472 degrees
+            # wkb_point = WKBSpatialElement( buffer( point.wkb ), 4326 )
+            # INSERT OR UPDATE THE USER LOCATION AND ITS CURRENT STATUS
+            print(current_user)
+            if current_user:
+                print('there is a user {}'.format(current_user))
+            # print(LastLocationPostGis.query.filter(user_id=current_user.id))
+            # if count_user:
+            #     # here insert the lastlocation because the location doesn't exist
+            #     last_location = LastLocationPostGis(user_point_geoalchemy, main_user_active)
+            #     db.session.add(last_location)
+            #     db.session.commit()
+            # users = db.query(LastLo).\
+            #     filter(func.ST_DWithin(User.location,  wkb_element, distance)).all()
+            print('function complete inside try block')
+            return jsonify({"message": str("in side post")}), 200
         except KeyError as err:
             print(err)
-            return jsonify({"message": str(err)}), 200
+            return jsonify({"message": str(err)}), 400
 
-    return jsonify({"message": str("function ends")}), 401
-
-
-@app.route('/protected', methods=['GET'])
-@jwt_required
-def protected():
-    return jsonify({'hello': 'world'})
-
-
-def kilometersToDegrees(kilometers):
-    return kilometers / 111.325
+    return jsonify({"message": str("you are in a protected area")}), 200
 
 
 '''
@@ -305,10 +239,6 @@ newToner = Toner(toner_id = 1,
                     toner_hex = '#0F85FF')
 dbsession.add(newToner)
 dbsession.flush()
-
-eg4
-
-# db.session.query(LastLocationPostGis).filter(LastLocationPostGis.user_id == current_user_id).update({'latest_point': point})
 _______
 INSERT multiple
 newToner1 = Toner(toner_id = 1,
@@ -373,5 +303,5 @@ wkt_element_1 = WKTElement('POINT(5 45)')
 wkt_element_2 = WKTElement('POINT(5 45)', srid=4326)
 wkt_element_3 = WKTElement('SRID=4326;POINT(5 45)', extended=True)
 
-https://stackoverflow.com/questions/23981056/geoalchemy-st-dwithin-implementation
+
 '''

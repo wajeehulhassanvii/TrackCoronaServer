@@ -11,5 +11,9 @@ class UserHealth(db.Model):
                           db.ForeignKey('user.id'),
                           nullable=False)
 
-    def __init__(self, user_id=None, user_health=None):
+    def __init__(self,
+                 user_health=None,
+                 person_id=None):
+        self.user_id = person_id
         self.user_health = user_health
+        self.person_id = person_id

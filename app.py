@@ -5,6 +5,7 @@ from extensions import app
 from models import user
 from models import lastlocationpostgis
 from models import userhealth
+from models import token_blacklist
 
 # create dbs
 db.create_all()
@@ -18,6 +19,7 @@ admin = User(username='admin', email='admin@example.com')
 
 # import view apis
 import views   # noqa: E402
-import myadmin
+# import myadmin
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8000, debug=True)
