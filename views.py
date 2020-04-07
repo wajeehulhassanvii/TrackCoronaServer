@@ -231,14 +231,13 @@ def get_users_within_diameter():
             if len(list_of_users) > 0:
                 print('list of users is more than 1')
                 return jsonify(message=str("in side post"),
-                               list_of_users=[e.serialize() for e in list_of_users],
-                               statusCode=401)
+                               list_of_users=[e.serialize() for e in list_of_users]), 200
             else:
                 return jsonify(message=str("in side post"),
-                               list_of_users=[],
-                               statusCode=401)
+                               list_of_users=[]), 200
         except KeyError as err:
             print(err)
+            print('returning key error')
             return jsonify({"message": str(err)}), 200
 
     return jsonify({"message": str("function ends")}), 401
