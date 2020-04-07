@@ -22,7 +22,7 @@ from blacklist_helpers import (
 
 from sqlalchemy import func
 from geoalchemy2 import WKBElement, WKTElement
-from geoalchemy2.shape import from_shape
+from geoalchemy2.shape import from_shape, to_shape
 # from geoalchemy2 import WKBSpatialElement
 from sqlalchemy import cast
 from shapely.geometry.point import Point
@@ -34,7 +34,7 @@ from flask_json import FlaskJSON, JsonError, json_response, as_json
 # from geoalchemy2 import ST_DFullyWithin
 # from geoalchemy2 import WKBElement
 # from geoalchemy2 import WKSpatialElement
-# from geoalchemy2.functions import functions
+from geoalchemy2 import functions as geoalchemy_func
 # from sqlalchemy import func
 
 from models.userhealth import UserHealth
@@ -195,6 +195,7 @@ def get_users_within_diameter():
             point = Point(temp_lon, temp_lat)
             point_wkt = WKTElement('SRID=4326;POINT({} {})'.format(temp_lon, temp_lat), srid=4326)
             print(point)
+            print(point_wkt)
             # print(point_string)
             # update UserHealth with users health
             user_health_instance = db.session.query(UserHealth).filter(UserHealth.person_id == current_user_id).first()
@@ -230,6 +231,8 @@ def get_users_within_diameter():
 
             if len(list_of_users) > 0:
                 print('list of users is more than 1')
+                print(str(to_shape(list_of_users[0].latest_point)))
+                print(list_of_users[0].latest_point)
                 return jsonify(message=str("in side post"),
                                list_of_users=[e.serialize() for e in list_of_users]), 200
             else:
@@ -373,6 +376,12 @@ Usage examples:
 wkt_element_1 = WKTElement('POINT(5 45)')
 wkt_element_2 = WKTElement('POINT(5 45)', srid=4326)
 wkt_element_3 = WKTElement('SRID=4326;POINT(5 45)', extended=True)
+
+print(type(list_of_users[0].latest_point))
+print(type(str(to_shape(list_of_users[0].latest_point))))
+print(func.ST_Transform(list_of_users[0].latest_point, 4326))
+return jsonify(message=str("in side post"),
+
 
 https://stackoverflow.com/questions/23981056/geoalchemy-st-dwithin-implementation
 '''

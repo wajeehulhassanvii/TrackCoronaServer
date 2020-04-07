@@ -6,6 +6,8 @@ from extensions import db
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
+from geoalchemy2.shape import to_shape
+
 
 class LastLocationPostGis(db.Model):
     """Simple database model to track the last location of an active user."""
@@ -35,7 +37,8 @@ class LastLocationPostGis(db.Model):
     def serialize(self):
         return {
                     'user_id': self.user_id,
-                    'latest_point': str(self.latest_point),
+                    'latest_point_lat': str(to_shape(self.latest_point).y),
+                    'latest_point_lng': str(to_shape(self.latest_point).x),
                     'last_modified': self.last_modified,
                     'active': self.active,
                     'person_id': self.person_id,
