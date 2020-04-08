@@ -37,6 +37,7 @@ from flask_json import FlaskJSON, JsonError, json_response, as_json
 from models.userhealth import UserHealth
 from models.user import User
 from models.lastlocationpostgis import LastLocationPostGis
+from models.userlocationandhealth import UserLocationAndHealth
 from flask_bcrypt import generate_password_hash
 
 
@@ -187,12 +188,8 @@ def get_users_within_diameter():
 
             temp_lat = Decimal(main_user_latitude)
             temp_lon = Decimal(main_user_longitude)
-            kms = 1
-            approximate_degree_distance = kilometersToDegrees(kms)
-            point = Point(temp_lon, temp_lat)
+
             point_wkt = WKTElement('SRID=4326;POINT({} {})'.format(temp_lon, temp_lat), srid=4326)
-            print(point)
-            print(point_wkt)
             # print(point_string)
             # update UserHealth with users health
             user_health_instance = db.session.query(UserHealth).filter(UserHealth.person_id == current_user_id).first()
@@ -224,24 +221,28 @@ def get_users_within_diameter():
             list_of_users_filter = func.ST_DWithin(
                 LastLocationPostGis.latest_point, point_wkt,
                 1000)
-            list_of_users = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.active==True).filter(list_of_users_filter).all()
+            list_of_users = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.active==True).filter(list_of_users_filter).order_by(LastLocationPostGis.person_id).all()
 
             if len(list_of_users) > 0:
-                print('list of users {}'.format(len(list_of_users)))
-                print(str(to_shape(list_of_users[0].latest_point)))
-                print(list_of_users[0].latest_point)
 
                 temp_list_user_ids = []
                 for every_user in list_of_users:
                     temp_list_user_ids.append(every_user.person_id)
 
-                temp_list_users_conditions = db.session.query(UserHealth).filter(UserHealth.person_id.in_(temp_list_user_ids)).all()
-                # for e in temp_list_users_conditions:
-                #     print(e.user_health)
+                temp_list_users_conditions = db.session.query(UserHealth).filter(UserHealth.person_id.in_(temp_list_user_ids)).order_by(UserHealth.person_id).all()
 
-                return jsonify(message=str("fetching user health and latest location completed..."),
-                               list_of_users=[e.serialize() for e in list_of_users],
-                               list_of_user_conditions=[e.serialize() for e in temp_list_users_conditions]), 200
+                list_of_user_location_and_health = []
+                for i in range(len(list_of_users)):
+                    temp_obj = UserLocationAndHealth(str(to_shape(list_of_users[i].latest_point).y),
+                                                     str(to_shape(list_of_users[i].latest_point).x),
+                                                     list_of_users[i].person_id,
+                                                     temp_list_users_conditions[i].user_health)
+                    list_of_user_location_and_health.append(temp_obj)
+
+                user_location_health_return = [e.serialize() for e in list_of_user_location_and_health]
+                return jsonify(
+                    message=str("fetching complete ....."),
+                    list_of_user_location_and_health=(user_location_health_return),), 200
             else:
                 return jsonify(message=str("in side post"),
                                list_of_users=[]), 200

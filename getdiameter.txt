@@ -1,0 +1,78 @@
+
+@app.route('/getuserswithindiameter', methods=['POST', 'GET'])
+# @jwt_required
+def get_users_within_diameter():
+    '''
+    get the geocoordinates of all the people in close proximity
+    error-> 302: redirect when no login, otherwise success : 200
+    '''
+    print('before post method')
+    if request.method == 'POST':
+        request_data = request.get_json(force=True)
+        print('inside post')
+        try:
+            main_user_latitude = request_data["userLatitude"]
+            main_user_longitude = request_data["userLongitude"]
+            main_user_condition = request_data["personCondition"]
+            current_user_id = 1
+
+            temp_lat = Decimal(main_user_latitude)
+            temp_lon = Decimal(main_user_longitude)
+            kms = 1
+            approximate_degree_distance = kilometersToDegrees(kms)
+            point = Point(temp_lon, temp_lat)
+            point_wkt = WKTElement('SRID=4326;POINT({} {})'.format(temp_lon, temp_lat), srid=4326)
+            user_health_instance = db.session.query(UserHealth).filter(UserHealth.person_id == current_user_id).first()
+            if(user_health_instance):
+                user_health_instance.user_health = main_user_condition
+                db.session.add(user_health_instance)
+                db.session.commit()
+            else:
+                db.session.add(UserHealth(main_user_condition, current_user_id))
+                db.session.commit()
+
+            # update LastLocationGis with users last location
+            last_loc_instance = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id == current_user_id).first()
+            if(last_loc_instance):
+                last_loc_instance.latest_point = point_wkt
+                db.session.add(last_loc_instance)
+                db.session.commit()
+            else:
+                print('instance not found')
+                db.session.add(LastLocationPostGis(point_wkt, current_user_id))
+                db.session.commit()
+            # working
+
+            list_of_users_filter = func.ST_DWithin(
+                LastLocationPostGis.latest_point, point_wkt,
+                1000)
+            list_of_users = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.active==True).filter(list_of_users_filter).order_by(LastLocationPostGis.person_id).all()
+
+            if len(list_of_users) > 0:
+                temp_list_user_ids = []
+                for every_user in list_of_users:
+                    temp_list_user_ids.append(every_user.person_id)
+
+                temp_list_users_conditions = db.session.query(UserHealth).filter(UserHealth.person_id.in_(temp_list_user_ids)).order_by(UserHealth.person_id).all()
+                    
+                list_of_user_location_and_health = []
+
+                for i in range(len(list_of_users)):
+                    list_of_user_location_and_health.append(UserLocationAndHealth(str(to_shape(list_of_users[i].latest_point).x), str(to_shape(list_of_users[i].latest_point).y), list_of_users[i].person_id, temp_list_users_conditions[i].user_health))
+                    
+                
+                print('len e :', len(list_of_user_location_and_health))
+                for e in list_of_user_location_and_health:
+                    print(type(e.latest_point_lon))
+
+                return jsonify(message=str("fetching user health and latest location completed..."),
+                               list_of_user_location_and_health=[e.serialize() for e in list_of_user_location_and_health]), 200
+            else:
+                return jsonify(message=str("in side post"),
+                               list_of_users=[]), 200
+        except KeyError as err:
+            print(err)
+            print('returning key error')
+            return jsonify({"message": str(err)}), 200
+
+    return jsonify({"message": str("function ends")}), 401
