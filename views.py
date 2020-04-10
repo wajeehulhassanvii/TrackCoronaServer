@@ -92,7 +92,7 @@ def loginUser():
                 password = request_data['password']
                 if user.check_password(password):
                     access_token = create_access_token(identity=user.id, fresh=True)
-                    refresh_token = create_refresh_token(user.id)
+                    refresh_token = create_refresh_token(identity=user.id)
                     return jsonify({
                         "message": str("login\
                         successful"),
@@ -122,18 +122,13 @@ def loginUser():
 @app.route('/refresh', methods=['POST'])
 @jwt_refresh_token_required
 def refresh():
-    print('token refreshed')
+    print('inside token refreshed method')
     current_user = get_jwt_identity()
     access_token = create_access_token(identity=current_user)
     ret = {
         'access_token': access_token
     }
     return jsonify(ret), 201
-
-
-# def check_if_token_in_blacklist(decrypted_token):
-#     jti = decrypted_token['jti']
-#     return models.RevokedTokenModel.is_jti_blacklisted(jti)
 
 
 # check token
@@ -171,6 +166,8 @@ def logout(token_id):
 # @jwt_required
 def get_users_within_diameter():
     '''
+    make sure person condition and location both are present
+    otherwise return error
     get the geocoordinates of all the people in close proximity
     error-> 302: redirect when no login, otherwise success : 200
     '''
@@ -182,7 +179,7 @@ def get_users_within_diameter():
             main_user_latitude = request_data["userLatitude"]
             main_user_longitude = request_data["userLongitude"]
             main_user_condition = request_data["personCondition"]
-            current_user_id = 1
+            current_user_id = 5
 
             # Also check if active
 
@@ -253,6 +250,53 @@ def get_users_within_diameter():
 
     return jsonify({"message": str("function ends")}), 401
 
+
+@app.route('/getappuserstats', methods=['POST', 'GET'])
+# @jwt_required
+def get_app_user_stats():
+    if request.method == 'GET':
+        print('inside get')
+        app_user_stats = db.session.query(UserHealth.user_health, func.count(UserHealth.user_health)).group_by(UserHealth.user_health).all()
+        print(app_user_stats)
+    return jsonify({"message": 'stats fetched',
+                    "total_user_stats": app_user_stats}), 200
+
+
+@app.route('/deleteuserhealthandlocation', methods=['DELETE', 'GET'])
+# @jwt_required
+def delete_user_health_and_location():
+    print(request)
+    if request.method == 'DELETE':
+        request_data = request.get_json(force=True)
+        print('inside post')
+        # try:
+        main_person_id = request_data["userId"]
+        print('userid recieved: {}'.format(main_person_id))
+        main_person_id = Decimal(main_person_id)
+
+        main_user_location_record = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id == main_person_id)
+        if main_user_location_record:
+            print('data exists for deletion')
+            db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id==main_person_id).delete()
+            db.session.commit()
+
+            main_user_health_record = db.session.query(UserHealth).filter(UserHealth.person_id == main_person_id)
+            if main_user_health_record:
+                print('data exists for deletion.')
+                db.session.query(UserHealth).filter(UserHealth.person_id == main_person_id).delete()
+                db.session.commit()
+            else:
+                return jsonify(message=str("no health or location record found")), 200
+
+    return jsonify(message=str("in side post")), 200
+
+        # if (db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id==))
+        #     db.session.query(Model).filter(Model.id==123).delete()
+        #     db.session.commit()
+
+        # if (db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id==))
+        #     db.session.query(Model).filter(Model.id==123).delete()
+        #     db.session.commit()
 
 @app.route('/protected', methods=['GET'])
 @jwt_required
