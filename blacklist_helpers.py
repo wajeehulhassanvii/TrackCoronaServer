@@ -24,11 +24,15 @@ def add_token_to_blacklist(encoded_token, identity_claim):
     """
     decoded_token = decode_token(encoded_token)
     jti = decoded_token['jti']
+    token_type = decoded_token['type']
     user_identity = decoded_token[identity_claim]
+    expires = _epoch_utc_to_datetime(decoded_token['exp'])
 
     db_token = TokenBlacklist(
         jti=jti,
-        user_identity=user_identity
+        user_identity=user_identity,
+        token_type=token_type,
+        expires=expires,
     )
     db.session.add(db_token)
     db.session.commit()
@@ -51,3 +55,11 @@ def is_token_blacklisted(decoded_token):
             return False
     except NoResultFound:
         return False
+
+
+def get_user_tokens(user_identity):
+    """
+    Returns all of the tokens, revoked and unrevoked, that are stored for the
+    given user
+    """
+    return TokenBlacklist.query.filter_by(user_identity=user_identity).all()

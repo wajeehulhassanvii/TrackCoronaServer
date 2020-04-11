@@ -35,6 +35,17 @@ class User(UserMixin, db.Model):
                                          backref='the_person',
                                          uselist=False)
 
+    def serialize(self):
+        return {
+            "id": self.id,
+            "email": self.email,
+            "password": self.password,
+            "phone_number": self.phone_number,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "active": self.active
+                }
+
     def __init__(self,
                  email=None,
                  password=None,
@@ -42,11 +53,11 @@ class User(UserMixin, db.Model):
                  firstName=None,
                  lastName=None
                  ):
-        self.email = email
-        self.password = password
-        self.phone_number = phoneNumber
-        self.first_name = firstName
-        self.last_name = lastName
+        self.email = email,
+        self.password = password,
+        self.phone_number = phoneNumber,
+        self.first_name = firstName,
+        self.last_name = lastName,
         self.active = True
         # self.is_authenticated = True
         # self.creation_time = dt.datetime.utcnow

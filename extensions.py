@@ -25,7 +25,7 @@ app = Flask(
     # insert names below like ->template_folder="../client/templates",<-
     )  # Flask app ends here
 app.config.from_pyfile('config.cfg')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(minutes=1)
 
 
 # INITIALIZE DIFFERENT GLOBAL VARIABLES

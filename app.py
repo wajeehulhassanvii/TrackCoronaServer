@@ -1,5 +1,6 @@
 from extensions import db
 from extensions import app
+from extensions import jwt
 
 # import model classes to create the tables
 from models import user

@@ -1,8 +1,9 @@
 
 from extensions import app
-from extensions import db
+from app import db
 from extensions import session
 from extensions import login_manager
+from app import jwt
 
 from flask import jsonify, request
 from flask_jwt_extended import create_access_token
@@ -29,6 +30,8 @@ from shapely.geometry.point import Point
 from decimal import Decimal
 
 from flask_json import FlaskJSON, JsonError, json_response, as_json
+
+from blacklist_helpers import get_user_tokens
 
 # from geoalchemy2 import ST_DFullyWithin
 # from geoalchemy2 import WKBElement
@@ -66,11 +69,17 @@ def send_registration_data():
         except KeyError as err:
             print(err)
             return jsonify({"message": str("key error")}), 400
-        new_user = User(email, hashed_password, phone_number, first_name,
+        access_token = create_access_token(identity=email)
+        refresh_token = create_refresh_token(identity=email)
+        new_user = User(email, hashed_password, phone_number,
+                        first_name,
                         last_name)
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({"message": str("Account successfully created")}), 200
+        return jsonify({"message": str("Account successfully\
+             created"),
+                        "access_token": access_token,
+                        "refresh_token": refresh_token}), 200
 
     if request.method == 'GET':
         print('inside get method')
@@ -91,11 +100,11 @@ def loginUser():
             if user is not None:
                 password = request_data['password']
                 if user.check_password(password):
-                    access_token = create_access_token(identity=user.id, fresh=True)
-                    refresh_token = create_refresh_token(identity=user.id)
+                    access_token = create_access_token(identity=user,
+                                                       fresh=True)
+                    refresh_token = create_refresh_token(user)
                     return jsonify({
-                        "message": str("login\
-                        successful"),
+                        "message": str("login successful"),
                         "access_token": access_token,
                         "refresh_token": refresh_token
                                     }), 200
@@ -117,18 +126,43 @@ def loginUser():
         function working")}), 200
 
 
+@jwt.user_identity_loader
+def user_identity_lookup(user):
+    return User.query.filter_by(email=user.email).first().email
+
+
 # Standard refresh endpoint. A blacklisted refresh token
 # will not be able to access this endpoint
+''' Endpoints decorated with @jwt_refresh_token_required
+require that an Authorization: Bearer {refresh_token}
+header is included in the request.'''
+
+
+@app.route('/fresh-login', methods=['POST'])
+def fresh_login():
+    request_data = request.get_json(force=True)
+    email = str(request_data['email'])
+    password = request_data['password']
+    user = User.query.filter_by(email=email).first()
+    if user.check_password(password):
+        access_token = create_access_token(identity=user,
+                                           fresh=True)
+        return jsonify({
+            "access_token": access_token
+                        }), 200
+    else:
+        return jsonify({
+            "access_token": access_token
+                        }), 200
+
+
 @app.route('/refresh', methods=['POST'])
 @jwt_refresh_token_required
 def refresh():
     print('inside token refreshed method')
     current_user = get_jwt_identity()
-    access_token = create_access_token(identity=current_user)
-    ret = {
-        'access_token': access_token
-    }
-    return jsonify(ret), 201
+    access_token = create_access_token(identity=current_user, fresh=False)
+    return jsonify({"access_token": access_token}), 200
 
 
 # check token
@@ -144,6 +178,11 @@ def get_tokens():
 @app.route('/logout', methods=['DELETE'])
 @jwt_required
 def logout(token_id):
+    jti = get_raw_jwt()['jti']
+    encoded_token = get_user_tokens()
+    add_token_to_blacklist()
+    db.session.add(user_health_instance)
+    db.session.commit()
     ''' must provide access_token and refresh_token to logout the user
     upon logining in again, new access_token and refresh_token
     will be issued'''
@@ -290,17 +329,11 @@ def delete_user_health_and_location():
 
     return jsonify(message=str("in side post")), 200
 
-        # if (db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id==))
-        #     db.session.query(Model).filter(Model.id==123).delete()
-        #     db.session.commit()
-
-        # if (db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id==))
-        #     db.session.query(Model).filter(Model.id==123).delete()
-        #     db.session.commit()
 
 @app.route('/protected', methods=['GET'])
 @jwt_required
 def protected():
+    
     return jsonify({'hello': 'world'})
 
 
