@@ -135,10 +135,7 @@ def user_identity_lookup(user):
     print(type(user))
     if(type(user) == dict):
         print(type(user))
-        user = User(user['email'], user['password'],
-                    user['phone_number'], user['first_name'],
-                    user['last_name'])
-        temp_user = User.query.filter_by(email=str(user.email[0])).first()
+        temp_user = User.query.filter_by(email=str(user['email'])).first()
         temp_user_serialized = temp_user.serialize()
     else:
         temp_user = User.query.filter_by(email=user.email).first()
