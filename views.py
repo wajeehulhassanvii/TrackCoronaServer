@@ -21,6 +21,7 @@ from blacklist_helpers import (
     is_token_blacklisted, add_token_to_blacklist
 )
 
+import json
 from sqlalchemy.sql import table, column
 from sqlalchemy import func
 from geoalchemy2 import WKTElement
@@ -41,6 +42,7 @@ from models.userhealth import UserHealth
 from models.user import User
 from models.lastlocationpostgis import LastLocationPostGis
 from models.userlocationandhealth import UserLocationAndHealth
+from models.interactedusers import InteractedUsers
 from flask_bcrypt import generate_password_hash
 
 
@@ -100,6 +102,7 @@ def loginUser():
             if user is not None:
                 password = request_data['password']
                 if user.check_password(password):
+                    print('putting user as identity {}'.format(user))
                     access_token = create_access_token(identity=user,
                                                        fresh=True)
                     refresh_token = create_refresh_token(user)
@@ -128,7 +131,21 @@ def loginUser():
 
 @jwt.user_identity_loader
 def user_identity_lookup(user):
-    return User.query.filter_by(email=user.email).first().email
+    print('user in the user_identity_lookup: {}'.format(user))
+    print(type(user))
+    if(type(user) == dict):
+        print(type(user))
+        user = User(user['email'], user['password'],
+                    user['phone_number'], user['first_name'],
+                    user['last_name'])
+        temp_user = User.query.filter_by(email=str(user.email[0])).first()
+        temp_user_serialized = temp_user.serialize()
+    else:
+        temp_user = User.query.filter_by(email=user.email).first()
+        temp_user_serialized = temp_user.serialize()
+    # return User.query.filter_by(email=user.email).first().email
+    print('----------------loading identity-----------')
+    return temp_user_serialized
 
 
 # Standard refresh endpoint. A blacklisted refresh token
@@ -161,7 +178,9 @@ def fresh_login():
 def refresh():
     print('inside token refreshed method')
     current_user = get_jwt_identity()
+    print('------current user------- {}'.format(current_user))
     access_token = create_access_token(identity=current_user, fresh=False)
+    print(access_token)
     return jsonify({"access_token": access_token}), 200
 
 
@@ -177,12 +196,12 @@ def get_tokens():
 
 @app.route('/logout', methods=['DELETE'])
 @jwt_required
-def logout(token_id):
+def logout():
     jti = get_raw_jwt()['jti']
     encoded_token = get_user_tokens()
-    add_token_to_blacklist()
-    db.session.add(user_health_instance)
-    db.session.commit()
+    # add_token_to_blacklist(encoded_token, )
+    # db.session.add(user_health_instance)
+    # db.session.commit()
     ''' must provide access_token and refresh_token to logout the user
     upon logining in again, new access_token and refresh_token
     will be issued'''
@@ -202,7 +221,7 @@ def logout(token_id):
 
 
 @app.route('/getuserswithindiameter', methods=['POST', 'GET'])
-# @jwt_required
+@jwt_required
 def get_users_within_diameter():
     '''
     make sure person condition and location both are present
@@ -315,7 +334,7 @@ def delete_user_health_and_location():
 
         main_user_location_record = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id == main_person_id)
         if main_user_location_record:
-            print('data exists for deletion')
+            print('data exists for deletion') 
             db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id==main_person_id).delete()
             db.session.commit()
 
@@ -333,7 +352,32 @@ def delete_user_health_and_location():
 @app.route('/protected', methods=['GET'])
 @jwt_required
 def protected():
-    
+    return jsonify({'hello': 'world'})
+
+
+@app.route('/interactedusers', methods=['POST', 'GET'])
+@jwt_required
+def interactedusers():
+    if request.method == 'POST':
+        print('inside post of interactedusers')
+        request_data = request.get_json(force=True)
+        print(request_data)
+        user_i = str(get_jwt_identity())
+        # this statement is not needed
+        print('this is user: {}'.format(User.query.filter_by(email=user_i).first()))
+        main_person_id = db.session.query(User.id).filter(User.email == user_i).first()
+
+        # also if the interaction is already present then update the interaction
+        for n in range(len(request_data['listOfInteractedUsers'])):
+            print(request_data['listOfInteractedUsers'][n]['lat'])
+            temp_lat = Decimal(request_data['listOfInteractedUsers'][n]['lat'])
+            temp_lon = Decimal(request_data['listOfInteractedUsers'][n]['lng'])
+            temp_interacted_id = Decimal(request_data['listOfInteractedUsers'][n]['interacted_id'])
+            point_wkt = WKTElement('SRID=4326;POINT({} {})'.format(temp_lon, temp_lat), srid=4326)
+            db.session.add(InteractedUsers(point_wkt, main_person_id, temp_interacted_id))
+        db.session.commit()
+        print('pushed all the points to the database')
+        # db.session.add(InteractedUsers())
     return jsonify({'hello': 'world'})
 
 

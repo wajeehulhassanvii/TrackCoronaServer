@@ -7,6 +7,7 @@ from models import user
 from models import lastlocationpostgis
 from models import userhealth
 from models import token_blacklist
+from models import interactedusers
 
 # create dbs
 db.create_all()
