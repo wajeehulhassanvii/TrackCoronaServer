@@ -206,21 +206,29 @@ def logout():
     token_temp.revoked = True
     db.session.add(token_temp)
     db.session.commit()
+    print('token pushed to database')
     return jsonify({"message": str("you are logged\
-        out\nstay home stay safe!!!")}), 401
+        out\nstay home stay safe!!!")}), 200
 
 
 @app.route('/logoutrefresh', methods=['DELETE'])
 @jwt_refresh_token_required
 def logout_refresh():
-    jti = get_raw_jwt()['jti']
+    # jti = get_raw_jwt()['jti']
+    
+    request_data = request.get_json(force=True)
+    refresh_token = str(request_data['refresh_token'])
+    refresh_token_jti = get_jti(refresh_token)
+    
+    # token_type = decoded_token['type']
     # Store the tokens in our store with a status of not currently revoked.
-    token_temp = db.session.query(TokenBlacklist).filter_by(jti=jti).first()
+    token_temp = db.session.query(TokenBlacklist).filter_by(jti=refresh_token_jti).first()
     token_temp.revoked = True
     db.session.add(token_temp)
     db.session.commit()
+    print('revoked the refresh token')
     return jsonify({"message": str("you are logged\
-        out\nstay home stay safe!!!")}), 401
+        out\nstay home stay safe!!!")}), 200
 
 @app.route('/getuserswithindiameter', methods=['POST', 'GET'])
 @jwt_required
