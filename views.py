@@ -14,6 +14,7 @@ from flask_jwt_extended import jwt_required
 from flask_jwt_extended import get_raw_jwt
 from flask_jwt_extended import get_jwt_claims
 from flask_jwt_extended import fresh_jwt_required
+from flask_jwt_extended import get_jti
 
 from exceptions import TokenNotFound
 
@@ -43,7 +44,9 @@ from models.user import User
 from models.lastlocationpostgis import LastLocationPostGis
 from models.userlocationandhealth import UserLocationAndHealth
 from models.interactedusers import InteractedUsers
+from models.token_blacklist import TokenBlacklist
 from flask_bcrypt import generate_password_hash
+
 
 
 @app.route('/sendregistrationdata', methods=['POST', 'GET'])
@@ -106,6 +109,8 @@ def loginUser():
                     access_token = create_access_token(identity=user,
                                                        fresh=True)
                     refresh_token = create_refresh_token(user)
+                    add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'], False)
+                    add_token_to_blacklist(refresh_token, app.config['JWT_IDENTITY_CLAIM'], False)
                     return jsonify({
                         "message": str("login successful"),
                         "access_token": access_token,
@@ -178,6 +183,7 @@ def refresh():
     print('------current user------- {}'.format(current_user))
     access_token = create_access_token(identity=current_user, fresh=False)
     print(access_token)
+    add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'], False)
     return jsonify({"access_token": access_token}), 200
 
 
@@ -195,27 +201,26 @@ def get_tokens():
 @jwt_required
 def logout():
     jti = get_raw_jwt()['jti']
-    encoded_token = get_user_tokens()
-    # add_token_to_blacklist(encoded_token, )
-    # db.session.add(user_health_instance)
-    # db.session.commit()
-    ''' must provide access_token and refresh_token to logout the user
-    upon logining in again, new access_token and refresh_token
-    will be issued'''
-
-    print('clearing user login from sessions')
-
-    # Get and verify the desired revoked status from the body
-    json_data = request.get_json(force=True)
-    access_token = json_data['access_token']
-    refresh_token = json_data['refresh_token']
     # Store the tokens in our store with a status of not currently revoked.
-    add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'])
-    add_token_to_blacklist(refresh_token, app.config['JWT_IDENTITY_CLAIM'])
-
+    token_temp = db.session.query(TokenBlacklist).filter_by(jti=jti).first()
+    token_temp.revoked = True
+    db.session.add(token_temp)
+    db.session.commit()
     return jsonify({"message": str("you are logged\
         out\nstay home stay safe!!!")}), 401
 
+
+@app.route('/logoutrefresh', methods=['DELETE'])
+@jwt_refresh_token_required
+def logout_refresh():
+    jti = get_raw_jwt()['jti']
+    # Store the tokens in our store with a status of not currently revoked.
+    token_temp = db.session.query(TokenBlacklist).filter_by(jti=jti).first()
+    token_temp.revoked = True
+    db.session.add(token_temp)
+    db.session.commit()
+    return jsonify({"message": str("you are logged\
+        out\nstay home stay safe!!!")}), 401
 
 @app.route('/getuserswithindiameter', methods=['POST', 'GET'])
 @jwt_required

@@ -7,6 +7,7 @@ from flask_jwt_extended import decode_token
 from models.token_blacklist import TokenBlacklist
 from extensions import db
 from extensions import jwt
+from exceptions import TokenNotFound
 
 
 def _epoch_utc_to_datetime(epoch_utc):
@@ -17,7 +18,7 @@ def _epoch_utc_to_datetime(epoch_utc):
     return datetime.fromtimestamp(epoch_utc)
 
 
-def add_token_to_blacklist(encoded_token, identity_claim):
+def add_token_to_blacklist(encoded_token, identity_claim, is_revoked):
     """
     Adds a new token to the database. It is not revoked when it is added.
     :param identity_claim:
@@ -25,13 +26,15 @@ def add_token_to_blacklist(encoded_token, identity_claim):
     decoded_token = decode_token(encoded_token)
     jti = decoded_token['jti']
     token_type = decoded_token['type']
-    user_identity = decoded_token[identity_claim]
+    user_identity = str(decoded_token[identity_claim]['id'])
     expires = _epoch_utc_to_datetime(decoded_token['exp'])
+    revoked = is_revoked
 
     db_token = TokenBlacklist(
         jti=jti,
-        user_identity=user_identity,
         token_type=token_type,
+        user_identity=user_identity,
+        revoked=revoked,
         expires=expires,
     )
     db.session.add(db_token)
@@ -46,15 +49,15 @@ def is_token_blacklisted(decoded_token):
     in the database we are going to consider it revoked, as we don't know where
     it was created.
     """
+    print(' checking if token is in the blacklist or not')
     jti = decoded_token['jti']
-    try:
-        token = TokenBlacklist.query.filter_by(jti=jti).one()
-        if token:
-            return True
-        else:
-            return False
-    except NoResultFound:
-        return False
+    token = TokenBlacklist.query.filter_by(jti=jti).first()
+    if (token is not None):
+        print(type(token))
+        return token.revoked
+    else:
+        print(' no token in the database, please login in again')
+        return True
 
 
 def get_user_tokens(user_identity):
