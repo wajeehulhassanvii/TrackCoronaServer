@@ -62,8 +62,8 @@ class User(UserMixin, db.Model):
         # self.is_authenticated = True
         # self.creation_time = dt.datetime.utcnow
         # self.creation_time = timezone('utc', now())
-        print(db.session.query(func.count(User.id)).scalar())
-        self.id = db.session.query(func.count(User.id)).scalar() + 1
+        # print(db.session.query(func.count(User.id)).scalar())
+        # self.id = db.session.query(func.count(User.id)).scalar() + 1
 
     def set_password(self, password):
         """Set password."""

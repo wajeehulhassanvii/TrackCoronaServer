@@ -6,8 +6,9 @@ from geoalchemy2 import Geography
 
 class InteractedUsers(db.Model):
     __tablename__ = 'interacted_users'
-    interacted_id = db.Column(db.Integer,
-                              primary_key=True)
+    id = db.Column(db.Integer,
+                   primary_key=True)
+    interacted_id = db.Column(db.Integer)
     at_location = db.Column(Geography(geometry_type='POINT',
                                       srid=4326),
                             nullable=True)
@@ -34,6 +35,7 @@ class InteractedUsers(db.Model):
 
     def serialize(self):
         return {
+                    'id': self.id,
                     'interacted_id': self.interacted_id,
                     'at_location_lat': str(to_shape(self.at_location).y),
                     'at_location_lon': str(to_shape(self.at_location).x),
