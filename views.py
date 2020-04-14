@@ -417,10 +417,17 @@ def interactedusers():
             temp_lat = Decimal(request_data['listOfInteractedUsers'][n]['lat'])
             temp_lon = Decimal(request_data['listOfInteractedUsers'][n]['lng'])
             temp_interacted_id = Decimal(request_data['listOfInteractedUsers'][n]['interacted_id'])
-            if db.session.query(InteractedUsers.interacted_id).filter(InteractedUsers.person_id==main_person_id).filter(InteractedUsers.interacted_id==temp_interacted_id).first():
-                print('this is in interaction')
-            point_wkt = WKTElement('SRID=4326;POINT({} {})'.format(temp_lon, temp_lat), srid=4326)
-            db.session.add(InteractedUsers(point_wkt, main_person_id, temp_interacted_id))
+            temp_user = db.session.query(InteractedUsers).filter(InteractedUsers.person_id==main_person_id).filter(InteractedUsers.interacted_id==temp_interacted_id).first()
+            if temp_user:
+                print('this is in interaction, update the location and timestamp')
+                point_wkt = WKTElement('SRID=4326;POINT({} {})'.format(temp_lon, temp_lat), srid=4326)
+                temp_user.at_location = point_wkt
+                temp_user.at_time = dt.datetime.utcnow()
+                db.session.add(temp_user)
+            else:
+                print('not present so entering into db')
+                point_wkt = WKTElement('SRID=4326;POINT({} {})'.format(temp_lon, temp_lat), srid=4326)
+                db.session.add(InteractedUsers(point_wkt, main_person_id, temp_interacted_id))
         db.session.commit()
         print('pushed all the interacted user points to the database')
         # db.session.add(InteractedUsers())
