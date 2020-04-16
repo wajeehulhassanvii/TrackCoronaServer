@@ -244,7 +244,6 @@ def delete_the_user():
     refresh_token_jti = get_jti(refresh_token)
     access_token = str(request_data['access_token'])
     access_token_jti = get_jti(access_token)
-    
     refresh_identity = get_jwt_identity()
     person_id = refresh_identity['id']
     print(person_id, type(person_id))
@@ -254,7 +253,10 @@ def delete_the_user():
     db.session.query(TokenBlacklist).filter_by(jti=access_token_jti).delete()
     db.session.query(UserHealth).filter_by(person_id=person_id).delete()
     db.session.query(LastLocationPostGis).filter_by(person_id=person_id).delete()
+    db.session.query(InteractedUsers).filter_by(interacted_id=person_id).delete()
+    db.session.query(InteractedUsers).filter_by(person_id=person_id).delete()
     db.session.query(User).filter_by(id=person_id).delete()
+    db.session.query(TokenBlacklist).filter_by(user_identity=str(person_id)).delete()
     db.session.commit()
     print('deleted the user')
     return jsonify({"message": str("your account\
