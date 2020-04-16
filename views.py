@@ -16,7 +16,7 @@ from flask_jwt_extended import jwt_required
 from flask_jwt_extended import get_raw_jwt
 from flask_jwt_extended import get_jwt_claims
 from flask_jwt_extended import fresh_jwt_required
-from flask_jwt_extended import get_jti
+from flask_jwt_extended import get_jti, jwt_optional
 
 from exceptions import TokenNotFound
 
@@ -139,6 +139,19 @@ def loginUser():
         return jsonify({"message": str("GET login\
         function working")}), 200
 
+
+@app.route('/checklogin', methods=['POST'])
+@jwt_optional
+def check_login():
+    if request.method == 'POST':
+        jwt_user = get_jwt_identity()['jwt']
+        is_jwt_revoked = db.session.query(TokenBlacklist.revoked).filter(TokenBlacklist.jwt==jwt_user).last()
+        print('is jwt revoked {}'.format(is_jwt_revoked))
+        print('post working')
+        return jsonify({"message": str("GET login\
+    function working")}), 200
+    return jsonify({"message": str("GET login\
+    function working")}), 200
 
 @jwt.user_identity_loader
 def user_identity_lookup(user):
@@ -461,6 +474,14 @@ def interaction_notification():
         # all_interacted_users = db.session.query(User).filter(User.email == main_person_email).filter(User.id==func.any(interacted_user_ids_within_15_days)).all()
         print('send email to everyone in the all_interacted_users')
 
+        return jsonify({'hello': 'world'})
+    return jsonify({'hello': 'world'})
+
+
+@app.route('/', methods=['GET'])
+def landingpage():
+    if request.method == 'GET':
+        print('inside /')
         return jsonify({'hello': 'world'})
     return jsonify({'hello': 'world'})
 
