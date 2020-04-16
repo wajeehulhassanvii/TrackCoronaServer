@@ -3,6 +3,8 @@ from extensions import app
 from app import db
 from extensions import session
 from extensions import login_manager
+from extensions import mail
+from flask_mail import Message
 from app import jwt
 
 from flask import jsonify, request
@@ -189,16 +191,6 @@ def refresh():
     print(access_token)
     add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'], False)
     return jsonify({"access_token": access_token}), 200
-
-
-# check token
-@app.route('/checktoken', methods=['GET'])
-@jwt_required
-def get_tokens():
-    user_identity = get_jwt_identity()
-    all_tokens = get_user_tokens(user_identity)
-    ret = [token.to_dict() for token in all_tokens]
-    return jsonify(ret), 200
 
 
 @app.route('/logout', methods=['DELETE'])
@@ -393,12 +385,6 @@ def delete_user_health_and_location():
     return jsonify(message=str("in side post")), 200
 
 
-@app.route('/protected', methods=['GET'])
-@jwt_required
-def protected():
-    return jsonify({'hello': 'world'})
-
-
 @app.route('/interactedusers', methods=['POST', 'GET'])
 @jwt_required
 def interactedusers():
@@ -433,6 +419,49 @@ def interactedusers():
         db.session.commit()
         print('pushed all the interacted user points to the database')
         # db.session.add(InteractedUsers())
+    return jsonify({'hello': 'world'})
+
+
+@app.route('/interactionnotification', methods=['POST', 'GET'])
+@jwt_required
+def interaction_notification():
+    if request.method == 'POST':
+        request_data = request.get_json(force=True)
+        person_condition = request_data['person_condition']
+        main_person_id = get_jwt_identity()['id']
+        main_person_email = get_jwt_identity()['email']
+
+        interacted_user_ids_within_15_days = db.session.query(InteractedUsers.interacted_id).filter(InteractedUsers.person_id==main_person_id).filter(InteractedUsers.interacted_id!=main_person_id).all()
+        interacted_user_ids_within_15_days = [x[0] for x in interacted_user_ids_within_15_days]
+        print(interacted_user_ids_within_15_days)
+        print('get interacted users from User table')
+        interacted_users = db.session.query(User).filter(User.id==func.any(interacted_user_ids_within_15_days)).all()
+
+        print('below module sends email to following address')
+        for user in interacted_users:
+            print(user.email)
+
+        # with mail.connect() as conn:
+        #     for user in interacted_users:
+        #         print(user)
+        #         message = ''
+        #         subject = "possible contect with a COVID-19 %s person" % person_condition
+        #         if person_condition == 'symptoms':
+        #             message = 'message for symptoms'
+        #         elif person_condition == 'infected':
+        #             message = 'message for infected'
+        #         else:
+        #             message = 'please ignore the message and report us if recieved, must\
+        #                 be due to some fault in server, we are sorry about that, thanks'
+        #         msg = Message(recipients=[user.email],
+        #                       body=message,
+        #                       subject=subject)
+        #         conn.send(msg)
+
+        # all_interacted_users = db.session.query(User).filter(User.email == main_person_email).filter(User.id==func.any(interacted_user_ids_within_15_days)).all()
+        print('send email to everyone in the all_interacted_users')
+
+        return jsonify({'hello': 'world'})
     return jsonify({'hello': 'world'})
 
 

@@ -11,6 +11,8 @@ from flask_json import FlaskJSON, JsonError, json_response, as_json
 from flask_sqlalchemy import SQLAlchemy
 import datetime
 
+from flask_mail import Mail
+
 from flask_jwt_extended import (JWTManager, jwt_required,
                                 jwt_refresh_token_required,
                                 jwt_optional, fresh_jwt_required,
@@ -47,6 +49,8 @@ login_manager.login_message = 'please! login in first...'
 login_manager.fresh_view = '/login'
 login_manager.needs_refresh_message = 'login in again please!!!'
 
+#initialize flask mail
+mail = Mail(app)
 
 # initialize bcrypt
 bcrypt = Bcrypt(app)
