@@ -140,18 +140,29 @@ def loginUser():
         function working")}), 200
 
 
-@app.route('/checklogin', methods=['POST'])
+@app.route('/checklogin', methods=['GET'])
 @jwt_optional
 def check_login():
-    if request.method == 'POST':
-        jwt_user = get_jwt_identity()['jwt']
-        is_jwt_revoked = db.session.query(TokenBlacklist.revoked).filter(TokenBlacklist.jwt==jwt_user).last()
-        print('is jwt revoked {}'.format(is_jwt_revoked))
-        print('post working')
-        return jsonify({"message": str("GET login\
-    function working")}), 200
-    return jsonify({"message": str("GET login\
-    function working")}), 200
+    if request.method == 'GET':
+        jwt_user = get_jwt_identity()
+        if jwt_user:
+            jwt_user = jwt_user['id']
+            is_jwt_revoked = db.session.query(TokenBlacklist.revoked).filter(TokenBlacklist.user_identity==str(jwt_user)).first()
+            print('here')
+            print('is jwt revoked {}'.format(is_jwt_revoked))
+            return jsonify({"message": str("GET login\
+                function working"),
+                "is_jwt_revoked": is_jwt_revoked[0]}), 200
+        else:
+            print(' no jwt')
+            return jsonify({"message": str("GET login\
+                function working"),
+                "is_jwt_revoked": False}), 400
+        return jsonify({"message": str("check login\
+    function working")}), 400
+    return jsonify({"message": str("check login\
+    function working")}), 400
+
 
 @jwt.user_identity_loader
 def user_identity_lookup(user):
@@ -482,6 +493,14 @@ def interaction_notification():
 def landingpage():
     if request.method == 'GET':
         print('inside /')
+        return jsonify({'hello': 'world'})
+    return jsonify({'hello': 'world'})
+
+
+@app.route('/subscribepublic', methods=['POST'])
+def subscribe_for_public_info():
+    if request.method == 'POST':
+        print('inside /subscribepublic')
         return jsonify({'hello': 'world'})
     return jsonify({'hello': 'world'})
 
