@@ -44,6 +44,7 @@ from blacklist_helpers import get_user_tokens
 # from geoalchemy2 import WKSpatialElement
 
 from models.userhealth import UserHealth
+from models.fcm_tokens import FcmTokens
 from models.user import User
 from models.lastlocationpostgis import LastLocationPostGis
 from models.userlocationandhealth import UserLocationAndHealth
@@ -51,6 +52,7 @@ from models.interactedusers import InteractedUsers
 from models.token_blacklist import TokenBlacklist
 from flask_bcrypt import generate_password_hash
 
+from extensions import push_service
 
 
 @app.route('/sendregistrationdata', methods=['POST', 'GET'])
@@ -167,7 +169,6 @@ def check_login():
 @jwt.user_identity_loader
 def user_identity_lookup(user):
     print('user in the user_identity_lookup: {}'.format(user))
-    print(type(user))
     if(type(user) == dict):
         print(type(user))
         temp_user = User.query.filter_by(email=str(user['email'])).first()
@@ -187,7 +188,7 @@ require that an Authorization: Bearer {refresh_token}
 header is included in the request.'''
 
 
-@app.route('/fresh-login', methods=['POST'])
+@app.route('/freshlogin', methods=['POST'])
 def fresh_login():
     request_data = request.get_json(force=True)
     email = str(request_data['email'])
@@ -209,11 +210,18 @@ def fresh_login():
 @jwt_refresh_token_required
 def refresh():
     print('inside token refreshed method')
+    # TODO check database if token is revoked then
+    # TODO authenticate the expired token
+    # don't issue if
     current_user = get_jwt_identity()
     print('------current user------- {}'.format(current_user))
+    # TODO retrieve access_token from JSON body and see if token is present in DB
     access_token = create_access_token(identity=current_user, fresh=False)
-    print(access_token)
+    print('new access_token: {}'.format(access_token))
+    # person_id = current_user['id']
+    # TODO delete expired tokens after matching them in DB
     add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'], False)
+    print('new current user n access_token pushed to db')
     return jsonify({"access_token": access_token}), 200
 
 
@@ -226,7 +234,7 @@ def logout():
     token_temp.revoked = True
     db.session.add(token_temp)
     db.session.commit()
-    print('token pushed to database')
+    print('token pushed to database for delete')
     return jsonify({"message": str("you are logged\
         out\nstay home stay safe!!!")}), 200
 
@@ -298,7 +306,7 @@ def get_users_within_diameter():
             main_user_condition = request_data["personCondition"]
             temp_identity = get_jwt_identity()
             current_user_id = temp_identity['id']
-            print('{}   {}'.format(current_user_id, type(current_user_id)))
+            # print('{}   {}'.format(current_user_id, type(current_user_id)))
 
             # Also check if active
 
@@ -310,10 +318,12 @@ def get_users_within_diameter():
             # update UserHealth with users health
             user_health_instance = db.session.query(UserHealth).filter(UserHealth.person_id == current_user_id).first()
             if(user_health_instance):
+                # TODO implement this with celery
                 user_health_instance.user_health = main_user_condition
                 db.session.add(user_health_instance)
                 db.session.commit()
             else:
+                # TODO implement this with celery
                 db.session.add(UserHealth(main_user_condition, current_user_id))
                 db.session.commit()
 
@@ -321,11 +331,13 @@ def get_users_within_diameter():
             last_loc_instance = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id == current_user_id).first()
             if(last_loc_instance):
                 print('instance found')
+                # TODO implement this with celery
                 last_loc_instance.latest_point = point_wkt
                 last_loc_instance.last_modified = dt.datetime.utcnow()
                 db.session.add(last_loc_instance)
                 db.session.commit()
             else:
+                # TODO implement this with celery
                 print('instance not found')
                 db.session.add(LastLocationPostGis(point_wkt, current_user_id))
                 db.session.commit()
@@ -333,22 +345,24 @@ def get_users_within_diameter():
 
             # Find all points and remove our own point
             # wkb_element = from_shape(point)
-            print(point_wkt)
+            # print(point_wkt)
             # wkb_point = WKBSpatialElement(buffer(point.wkb ), 4326 )
             list_of_users_filter = func.ST_DWithin(
                 LastLocationPostGis.latest_point, point_wkt,
                 1000)
+            
             list_of_users = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.active==True).filter(list_of_users_filter).order_by(LastLocationPostGis.person_id).all()
 
             if len(list_of_users) > 0:
 
                 temp_list_user_ids = []
+                # TODO paralellize for loop
                 for every_user in list_of_users:
                     temp_list_user_ids.append(every_user.person_id)
 
                 temp_list_users_conditions = db.session.query(UserHealth).filter(UserHealth.person_id.in_(temp_list_user_ids)).order_by(UserHealth.person_id).all()
-                print('')
                 list_of_user_location_and_health = []
+                # TODO paralellize for loop
                 for i in range(len(list_of_users)):
                     temp_obj = UserLocationAndHealth(str(to_shape(list_of_users[i].latest_point).y),
                                                      str(to_shape(list_of_users[i].latest_point).x),
@@ -380,6 +394,45 @@ def get_app_user_stats():
         print(app_user_stats)
     return jsonify({"message": 'stats fetched',
                     "total_user_stats": app_user_stats}), 200
+
+
+@app.route('/savefcmtoken', methods=['POST', 'GET'])
+@jwt_optional
+def save_fcm_token():
+    if request.method == 'POST':
+        print('inside savefcmtoken POST')
+        request_data = request.get_json()
+        fcb_token = request_data['fcm_token']
+        old_fcb_token = request_data['old_fcm_token']
+        main_person_id = get_jwt_identity()
+        if main_person_id:
+            main_person_id = main_person_id['id']
+        else:
+            print('don\'t save without token')
+            return jsonify({"message": 'savefcmtoken: id for fcm_token\
+ not in jwt but initialized in app'}), 200
+        if db.session.query(FcmTokens).filter(FcmTokens.token == fcb_token).first():
+            print('same token present, don\'t save')
+            return jsonify({"message": 'savefcmtoken: fcm token already present for user'}), 200
+        else:
+            print('fcb token not present, save')
+            db.session.query(FcmTokens).filter(FcmTokens.token == old_fcb_token).delete()
+            new_token = FcmTokens(fcb_token, str(main_person_id))
+            db.session.add(new_token)
+            db.session.commit()
+    return jsonify({"message": 'savefcmtoken: fcm token stored'}), 200
+
+
+@app.route('/deletefcmtoken', methods=['POST', 'GET'])
+@jwt_required
+def delete_fcm_token():
+    if request.method == 'POST':
+        print('inside savefcmtoken POST')
+        request_data = request.get_json()
+        fcm_token = request_data['fcm_token']
+        main_person_id = get_jwt_identity()['id']
+        db.session.query(FcmTokens).filter(FcmTokens.token == fcm_token).filter(FcmTokens.person_id == str(main_person_id)).delete()
+    return jsonify({"message": 'delete fcm token'}), 200
 
 
 @app.route('/deleteuserhealthandlocation', methods=['DELETE', 'GET'])
@@ -449,42 +502,65 @@ def interactedusers():
 @app.route('/interactionnotification', methods=['POST', 'GET'])
 @jwt_required
 def interaction_notification():
+    '''
+    fetch all users from interacted table and give them push
+    notification that they came in contact in person
+    who had symptoms/infection
+    '''
     if request.method == 'POST':
         request_data = request.get_json(force=True)
         person_condition = request_data['person_condition']
         main_person_id = get_jwt_identity()['id']
-        main_person_email = get_jwt_identity()['email']
 
-        interacted_user_ids_within_15_days = db.session.query(InteractedUsers.interacted_id).filter(InteractedUsers.person_id==main_person_id).filter(InteractedUsers.interacted_id!=main_person_id).all()
-        interacted_user_ids_within_15_days = [x[0] for x in interacted_user_ids_within_15_days]
-        print(interacted_user_ids_within_15_days)
-        print('get interacted users from User table')
-        interacted_users = db.session.query(User).filter(User.id==func.any(interacted_user_ids_within_15_days)).all()
+        # below query gives us every user he interacted except himself, safe to notify everyone
+        # interacted_users_within_15_days = db.session.query(InteractedUsers.interacted_id, InteractedUsers.at_time).filter(InteractedUsers.person_id==main_person_id).filter(InteractedUsers.interacted_id!=main_person_id).all()
+        interacted_users_within_15_days = db.session.query(InteractedUsers.interacted_id).filter(InteractedUsers.person_id==main_person_id).filter(InteractedUsers.interacted_id!=main_person_id).all()
 
-        print('below module sends email to following address')
-        for user in interacted_users:
-            print(user.email)
+        print(interacted_users_within_15_days)
+        interacted_user_ids_within_15_days = [x[0] for x in interacted_users_within_15_days]
+        
+        # interacted_user_time_within_15_days = [str(x[1]) for x in interacted_users_within_15_days]
+        # print(interacted_user_time_within_15_days)
+        
+        # interacted_user_condition_within_15_days = [str(x[1]) for x in interacted_user_ids_within_15_days]
 
-        # with mail.connect() as conn:
-        #     for user in interacted_users:
-        #         print(user)
-        #         message = ''
-        #         subject = "possible contect with a COVID-19 %s person" % person_condition
-        #         if person_condition == 'symptoms':
-        #             message = 'message for symptoms'
-        #         elif person_condition == 'infected':
-        #             message = 'message for infected'
-        #         else:
-        #             message = 'please ignore the message and report us if recieved, must\
-        #                 be due to some fault in server, we are sorry about that, thanks'
-        #         msg = Message(recipients=[user.email],
-        #                       body=message,
-        #                       subject=subject)
-        #         conn.send(msg)
+        interacted_users_token_list = []
+        interacted_users_tokens = db.session.query(FcmTokens.token).filter(FcmTokens.person_id == func.any(interacted_user_ids_within_15_days)).all()
+        interacted_users_token_list = [x[0] for x in interacted_users_tokens]
 
-        # all_interacted_users = db.session.query(User).filter(User.email == main_person_email).filter(User.id==func.any(interacted_user_ids_within_15_days)).all()
-        print('send email to everyone in the all_interacted_users')
+        # TODO dispatch interacted_users_token_list and message to celery for
+        # sending push notification using fcm and use person_condition
 
+        # TODO remove for loop, its just for checking
+        for token in interacted_users_token_list:
+            print(token)
+
+        # TODO we can send to everyone but for testing send to one
+        # thats present but send with celery
+        message_body = ""
+        if person_condition == "sysmptoms":
+            message_body = "Hi!, you contacted someone having {} of Corona Virus".format(person_condition)
+        else:
+            message_body = "Hi!, you contacted someone having who were potentially infected with Corona Virus as\
+confirmed by the user you interacted".format(person_condition)
+
+        registration_id = "cCId39GRS-uzbEtvq3B2FV:APA91bHUs_NSTNmpatdHl0fMhZ8Gt2u8it4EXjEyAeoxjff4J2tgYPIF-MLOe3ugJaZTIMXzeN9jCLXCczrZxi4JEBNGW4b4nj_PVL6pi3_7Kf05eEjlglmxuXzNVQUvKq6OjK-FoCsp"
+        message_title = "from dodge corona"
+        message_body = "Hi, you contacted someone" + person_condition
+        result = push_service.notify_single_device(registration_id=registration_id,
+                                                   message_title=message_title,
+                                                   message_body=message_body,
+                                                   low_priority=False,
+                                                   )
+        print(result)
+
+        '''
+        # Send to multiple devices by passing a list of ids.
+        registration_ids = ["<device registration_id 1>", "<device registration_id 2>", ...]
+        message_title = "Uber update"
+        message_body = "Hope you're having fun this weekend, don't forget to check today's news"
+        result = push_service.notify_multiple_devices(registration_ids=registration_ids, message_title=message_title, message_body=message_body)
+        '''
         return jsonify({'hello': 'world'})
     return jsonify({'hello': 'world'})
 
@@ -499,8 +575,37 @@ def landingpage():
 
 @app.route('/subscribepublic', methods=['POST'])
 def subscribe_for_public_info():
+    print(' not in POST')
     if request.method == 'POST':
         print('inside /subscribepublic')
+        data = request.get_json(force=True)
+        email = data['email']
+        if email:
+            print(str(email))
+        else:
+            print('not email')
+        # TODO implement subscribtion of email, store it in the db
+        # unique email and also create one for deletion
+        return jsonify({'hello': 'world'})
+    return jsonify({'hello': 'world'})
+
+
+@app.route('/feedback', methods=['POST'])
+def feedback():
+    print(' not in POST')
+    if request.method == 'POST':
+        print('inside /subscribepublic')
+        data = request.get_json(force=True)
+        name = data['name']
+        email = data['email']
+        message = data['message']
+        if email:
+            print(str(email))
+        else:
+            print('not email')
+        # TODO push feedback to db
+        # TODO also implement a page to read feedback for admin only
+        # unique email and also create one for deletion
         return jsonify({'hello': 'world'})
     return jsonify({'hello': 'world'})
 

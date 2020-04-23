@@ -12,7 +12,8 @@ from flask_sqlalchemy import SQLAlchemy
 import datetime
 
 from flask_mail import Mail
-
+from pyfcm import FCMNotification
+ 
 from flask_jwt_extended import (JWTManager, jwt_required,
                                 jwt_refresh_token_required,
                                 jwt_optional, fresh_jwt_required,
@@ -29,8 +30,8 @@ app = Flask(
 app.config.from_pyfile('config.cfg')
 # app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(minutes=1)
 # Setup the flask-jwt-extended extension. See:
-ACCESS_EXPIRES = datetime.timedelta(hours=1)
-REFRESH_EXPIRES = datetime.timedelta(days=1)
+ACCESS_EXPIRES = datetime.timedelta(minutes=1)
+REFRESH_EXPIRES = datetime.timedelta(days=5)
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = ACCESS_EXPIRES
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = REFRESH_EXPIRES
 
@@ -64,3 +65,15 @@ migrate = Migrate(app, db)
 
 # initialize JWT
 jwt = JWTManager(app)
+
+
+# proxy_dict = {
+#         #   "http": "http://127.0.0.1",
+#         #   "https": "http://127.0.0.1",
+#           "http": "http://10.0.2.2",
+#           "https": "http://10.0.2.2",
+#         }
+
+push_service = FCMNotification(api_key="AAAA0eHajjA:APA91bF78pTIEpZKn3EkWAqsua8FNx-6kj3t9g-21Mv5IbFZhiuIlfsNPRPq8jl802KtLNUWCBFd5fj0glA4DxnaQxGeoed2CN_HYo2qQbNRUfq48gybH0qWE0pYM0YvQY7Bx6MHbavo")
+    #                             #    proxy_dict=proxy_dict
+# )

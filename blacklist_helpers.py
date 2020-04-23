@@ -49,14 +49,15 @@ def is_token_blacklisted(decoded_token):
     in the database we are going to consider it revoked, as we don't know where
     it was created.
     """
-    print(' checking if token is in the blacklist or not')
+    # print(' checking if token is in the blacklist or not')
     jti = decoded_token['jti']
     token = TokenBlacklist.query.filter_by(jti=jti).first()
     if (token is not None):
-        print(type(token))
+        # print('token found in database')
+        # print(type(token))
         return token.revoked
     else:
-        print(' no token in the database, please login in again')
+        # print(' no token in the database, please login in again')
         return True
 
 
