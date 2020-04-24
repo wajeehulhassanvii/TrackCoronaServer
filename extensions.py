@@ -28,7 +28,7 @@ from flask_cors import CORS
 # Configure application with config file in root directory named config.cfg
 app = Flask(
     __name__,
-            # static_folder='/web',
+            static_folder='web',
     # insert names below like ->template_folder="../client/templates",<-
     )  # Flask app ends here
 app.config.from_pyfile('config.cfg')
