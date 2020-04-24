@@ -7,7 +7,7 @@ from extensions import mail
 from flask_mail import Message
 from app import jwt
 
-from flask import jsonify, request
+from flask import jsonify, request, render_template
 from flask_jwt_extended import create_access_token
 from flask_jwt_extended import create_refresh_token
 from flask_jwt_extended import jwt_refresh_token_required
@@ -50,9 +50,12 @@ from models.lastlocationpostgis import LastLocationPostGis
 from models.userlocationandhealth import UserLocationAndHealth
 from models.interactedusers import InteractedUsers
 from models.token_blacklist import TokenBlacklist
+from models.feedback import Feedback
+from models.subscribe import Subscribe
 from flask_bcrypt import generate_password_hash
 
 from extensions import push_service
+from flask_cors import CORS
 
 
 @app.route('/sendregistrationdata', methods=['POST', 'GET'])
@@ -569,10 +572,14 @@ confirmed by the user you interacted".format(person_condition)
 def landingpage():
     if request.method == 'GET':
         print('inside /')
-        return jsonify({'hello': 'world'})
-    return jsonify({'hello': 'world'})
+        print('inside /')
+        return render_template('web/index.html')
+    return render_template('web/index.html')
+    #     return jsonify({'hello': 'world'})
+    # return jsonify({'hello': 'world'})
 
 
+# @cross_origin()
 @app.route('/subscribepublic', methods=['POST'])
 def subscribe_for_public_info():
     print(' not in POST')
@@ -582,6 +589,9 @@ def subscribe_for_public_info():
         email = data['email']
         if email:
             print(str(email))
+            subscribe_user = Subscribe(email)
+            db.session.add(subscribe_user)
+            db.session.commit()
         else:
             print('not email')
         # TODO implement subscribtion of email, store it in the db
@@ -590,17 +600,26 @@ def subscribe_for_public_info():
     return jsonify({'hello': 'world'})
 
 
+# @cross_origin()
 @app.route('/feedback', methods=['POST'])
 def feedback():
     print(' not in POST')
     if request.method == 'POST':
-        print('inside /subscribepublic')
+        print('inside /feedback')
         data = request.get_json(force=True)
         name = data['name']
         email = data['email']
+        subject = data['subject']
         message = data['message']
+        print(name)
+        print(email)
+        print(subject)
+        print(message)
         if email:
             print(str(email))
+            feedback_user = Feedback(name, email, subject, message)
+            db.session.add(feedback_user)
+            db.session.commit()
         else:
             print('not email')
         # TODO push feedback to db
@@ -742,4 +761,12 @@ return jsonify(message=str("in side post"),
 
 
 https://stackoverflow.com/questions/23981056/geoalchemy-st-dwithin-implementation
+'''
+
+
+'''
+
+SERVER as static website
+python3 -m http.server
+
 '''

@@ -9,6 +9,8 @@ from models import userhealth
 from models import token_blacklist
 from models import interactedusers
 from models import fcm_tokens
+from models import subscribe
+from models import feedback
 
 # create dbs
 db.create_all()

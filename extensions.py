@@ -22,9 +22,13 @@ from flask_jwt_extended import (JWTManager, jwt_required,
                                 set_access_cookies, set_refresh_cookies,
                                 unset_jwt_cookies, unset_access_cookies)
 
+
+from flask_cors import CORS
+
 # Configure application with config file in root directory named config.cfg
 app = Flask(
     __name__,
+            # static_folder='/web',
     # insert names below like ->template_folder="../client/templates",<-
     )  # Flask app ends here
 app.config.from_pyfile('config.cfg')
@@ -66,6 +70,7 @@ migrate = Migrate(app, db)
 # initialize JWT
 jwt = JWTManager(app)
 
+CORS(app)
 
 # proxy_dict = {
 #         #   "http": "http://127.0.0.1",
