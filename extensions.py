@@ -28,8 +28,8 @@ from flask_cors import CORS
 # Configure application with config file in root directory named config.cfg
 app = Flask(
     __name__,
-    # static_url_path='/static',
-            # static_folder='static',
+    static_url_path='',
+            static_folder='web',
             template_folder='web',
             # template_folder="web",
     )  # Flask app ends here

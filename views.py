@@ -8,6 +8,7 @@ from flask_mail import Message
 from app import jwt
 
 from flask import jsonify, request, render_template
+import flask
 from flask_jwt_extended import create_access_token
 from flask_jwt_extended import create_refresh_token
 from flask_jwt_extended import jwt_refresh_token_required
@@ -572,8 +573,8 @@ confirmed by the user you interacted".format(person_condition)
 def landingpage():
     if request.method == 'GET':
         print('inside /')
-        return render_template('index.html')
-    return render_template('index.html')
+        return flask.send_from_directory("web/", 'index.html')
+    return flask.send_from_directory("web/", 'index.html')
     #     return jsonify({'hello': 'world'})
     # return jsonify({'hello': 'world'})
 
