@@ -30,7 +30,7 @@ app = Flask(
     __name__,
     # static_url_path='/static',
             # static_folder='static',
-            # template_folder='web',
+            template_folder='web',
             # template_folder="web",
     )  # Flask app ends here
 app.config.from_pyfile('config.cfg')
