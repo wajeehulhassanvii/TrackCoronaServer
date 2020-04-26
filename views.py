@@ -572,9 +572,8 @@ confirmed by the user you interacted".format(person_condition)
 def landingpage():
     if request.method == 'GET':
         print('inside /')
-        print('inside /')
-        return render_template('web/index.html')
-    return render_template('web/index.html')
+        return render_template('index.html')
+    return render_template('index.html')
     #     return jsonify({'hello': 'world'})
     # return jsonify({'hello': 'world'})
 
