@@ -15,7 +15,14 @@ class MyModelView(ModelView):
         ''' In this method we check if user can view ModelView'''
         # currently true because current_user is authenticated
         # control true or false, easily be done using flask_security
-        return current_user.is_authenticated
+        user_email = db.session.query(User.email).first()
+        check = False;
+        if user_email == "waji@gmail.com":
+            check = True
+        else:
+            check = False
+        # return current_user.is_authenticated
+        return check
 
     def inaccessible_callback(self, name, **kwargs):
         return redirect(url_for('/login'))
@@ -26,7 +33,14 @@ class MyAdminIndexView(AdminIndexView):
         ''' In this method we check if user can view AdminVIew'''
         # currently true because current_user is authenticated
         # control true or false, easily be done using flask_security
-        return current_user.is_authenticated
+        user_email = db.session.query(User.email).first()
+        check = False;
+        if user_email == "waji@gmail.com":
+            check = True
+        else:
+            check = False
+        # return current_user.is_authenticated
+        return check
 
     def inaccessible_callback(self, name, **kwargs):
         return redirect(url_for('/login'))
