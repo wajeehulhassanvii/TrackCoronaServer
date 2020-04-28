@@ -39,7 +39,6 @@ kappa==0.6.0
 Mako==1.1.2
 MarkupSafe==1.1.1
 pip-tools==5.0.0
-pkg-resources==0.0.0
 placebo==0.9.0
 psycopg2==2.8.5
 pycparser==2.20
