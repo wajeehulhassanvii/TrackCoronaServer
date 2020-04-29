@@ -2,8 +2,8 @@
 const CACHE_NAME = 'flutter-app-cache';
 const RESOURCES = {
   "favicon.png": "5dcef449791fa27946b3d35ad8803796",
-"index.html": "fbd87666386354a0b77c28779eab2433",
-"/": "fbd87666386354a0b77c28779eab2433",
+"index.html": "32db3c4219525a6faca41cbf42a08fa8",
+"/": "32db3c4219525a6faca41cbf42a08fa8",
 "assets/LICENSE": "8d449c64ffba3d3e385da3b61d47e572",
 "assets/assets/fonts/Alegreya-BoldItalic.ttf": "a6bf3e4d95c75fb9905498616449f113",
 "assets/assets/images/corona_splash_screen_image.png": "d4b0481bdca571cff9dc157f275ec084",
@@ -33,8 +33,8 @@ const RESOURCES = {
 "assets/packages/awesome_dialog/assets/flare/info_without_loop.flr": "cf106e19d7dee9846bbc1ac29296a43f",
 "assets/packages/awesome_dialog/assets/flare/warning.flr": "68898234dacef62093ae95ff4772509b",
 "assets/packages/line_awesome_icons/assets/fonts/icon_font.ttf": "4d42f5f0c62a8f51e876c14575354a6e",
-"manifest.json": "d96b85a4ac9a99f2d2d061ca3a3ae4be",
-"main.dart.js": "16bc676dc99f05350aa107559ba4fce1",
+"manifest.json": "34c23f28bf40df5e928b35f846283dd6",
+"main.dart.js": "83fb4b293e6717937b190e8d0301d30f",
 "icons/Icon-512.png": "96e752610906ba2a93c65f8abe1645f1",
 "icons/Icon-192.png": "ac9a721a12bbc803b44f645561ecb1e1"
 };
