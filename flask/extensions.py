@@ -36,7 +36,7 @@ app = Flask(
 app.config.from_pyfile('config.cfg')
 # app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(minutes=1)
 # Setup the flask-jwt-extended extension. See:
-ACCESS_EXPIRES = datetime.timedelta(minutes=1)
+ACCESS_EXPIRES = datetime.timedelta(seconds=30)
 REFRESH_EXPIRES = datetime.timedelta(days=5)
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = ACCESS_EXPIRES
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = REFRESH_EXPIRES

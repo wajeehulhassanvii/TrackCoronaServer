@@ -34,7 +34,7 @@ const RESOURCES = {
 "assets/packages/awesome_dialog/assets/flare/warning.flr": "68898234dacef62093ae95ff4772509b",
 "assets/packages/line_awesome_icons/assets/fonts/icon_font.ttf": "4d42f5f0c62a8f51e876c14575354a6e",
 "manifest.json": "34c23f28bf40df5e928b35f846283dd6",
-"main.dart.js": "83fb4b293e6717937b190e8d0301d30f",
+"main.dart.js": "f512dbdb2179ff211071171f87139946",
 "icons/Icon-512.png": "96e752610906ba2a93c65f8abe1645f1",
 "icons/Icon-192.png": "ac9a721a12bbc803b44f645561ecb1e1"
 };

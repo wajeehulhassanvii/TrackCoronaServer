@@ -18,6 +18,7 @@ from flask_jwt_extended import get_raw_jwt
 from flask_jwt_extended import get_jwt_claims
 from flask_jwt_extended import fresh_jwt_required
 from flask_jwt_extended import get_jti, jwt_optional
+from flask_jwt_extended import decode_token
 
 from exceptions import TokenNotFound
 
@@ -107,6 +108,8 @@ def send_registration_data():
 @app.route('/login', methods=['GET', 'POST'])
 def loginUser():
     if request.method == 'POST':
+        # TODO check existing access and refresh token first,
+        # TODO if present then turn revoke to false
         request_data = request.get_json(force=True)
         try:
             email = str(request_data['email'])
@@ -154,13 +157,11 @@ def check_login():
         if jwt_user:
             jwt_user = jwt_user['id']
             is_jwt_revoked = db.session.query(TokenBlacklist.revoked).filter(TokenBlacklist.user_identity==str(jwt_user)).first()
-            print('here')
             print('is jwt revoked {}'.format(is_jwt_revoked))
             return jsonify({"message": str("GET login\
                 function working"),
                 "is_jwt_revoked": is_jwt_revoked[0]}), 200
         else:
-            print(' no jwt')
             return jsonify({"message": str("GET login\
                 function working"),
                 "is_jwt_revoked": False}), 400
@@ -213,20 +214,30 @@ def fresh_login():
 @app.route('/refresh', methods=['POST'])
 @jwt_refresh_token_required
 def refresh():
-    print('inside token refreshed method')
-    # TODO check database if token is revoked then
-    # TODO authenticate the expired token
-    # don't issue if
-    current_user = get_jwt_identity()
-    print('------current user------- {}'.format(current_user))
-    # TODO retrieve access_token from JSON body and see if token is present in DB
-    access_token = create_access_token(identity=current_user, fresh=False)
-    print('new access_token: {}'.format(access_token))
-    # person_id = current_user['id']
-    # TODO delete expired tokens after matching them in DB
-    add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'], False)
-    print('new current user n access_token pushed to db')
-    return jsonify({"access_token": access_token}), 200
+    if request.method == 'POST':
+        print('inside token refreshed method')
+        # TODO check database if token is revoked then
+        # TODO authenticate the expired token
+        # don't issue if
+        current_user = get_jwt_identity()
+        # the_jwt = get_raw_jwt()
+        print('------current user------- {}'.format(current_user))
+        # TODO retrieve access_token from JSON body and see if token is present in DB
+        request_data = request.get_json(force=True)
+        old_access_token = decode_token(request_data['access_token'], allow_expired=True)
+        old_access_token = old_access_token['jti']
+        print('------old expired access token being removed------- {}'.format(old_access_token))
+        if db.session.query(TokenBlacklist).filter_by(jti=old_access_token).first():
+            print('old access token is present')
+            db.session.query(TokenBlacklist).filter_by(jti=old_access_token).delete()
+            db.session.commit()
+        access_token = create_access_token(identity=current_user, fresh=False)
+        print('new access_token: {}'.format(access_token))
+        # person_id = current_user['id']
+        # TODO delete expired tokens after matching them in DB
+        add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'], False)
+        print('new current user n access_token pushed to db')
+        return jsonify({"access_token": access_token}), 200
 
 
 @app.route('/logout', methods=['DELETE'])
@@ -247,18 +258,24 @@ def logout():
 @jwt_refresh_token_required
 def logout_refresh():
     # jti = get_raw_jwt()['jti']
-    
-    request_data = request.get_json(force=True)
-    refresh_token = str(request_data['refresh_token'])
-    refresh_token_jti = get_jti(refresh_token)
-    
-    # token_type = decoded_token['type']
-    # Store the tokens in our store with a status of not currently revoked.
-    token_temp = db.session.query(TokenBlacklist).filter_by(jti=refresh_token_jti).first()
-    token_temp.revoked = True
-    db.session.add(token_temp)
-    db.session.commit()
-    print('revoked the refresh token')
+    if request.method == 'DELETE':
+        request_data = request.get_json(force=True)
+        print('here1')
+        refresh_token = str(request_data['refresh_token'])
+        print('here2')
+        refresh_token_jti = get_jti(refresh_token)
+        # token_type = decoded_token['type']
+        # Store the tokens in our store with a status of not currently revoked.
+        token_temp = db.session.query(TokenBlacklist).filter_by(jti=refresh_token_jti).first()
+        print('here3')
+        token_temp.revoked = True
+        print('here4')
+        db.session.add(token_temp)
+        print('here5')
+        db.session.commit()
+        print('revoked the refresh token')
+        return jsonify({"message": str("you are logged\
+            out\nstay home stay safe!!!")}), 200
     return jsonify({"message": str("you are logged\
         out\nstay home stay safe!!!")}), 200
 
@@ -389,8 +406,8 @@ def get_users_within_diameter():
     return jsonify({"message": str("function ends")}), 401
 
 
-@app.route('/getappuserstats', methods=['POST', 'GET'])
-# @jwt_required
+@app.route('/getappuserstats', methods=['GET'])
+@jwt_required
 def get_app_user_stats():
     if request.method == 'GET':
         print('inside get')
@@ -469,7 +486,7 @@ def delete_user_health_and_location():
 @app.route('/interactedusers', methods=['POST', 'GET'])
 @jwt_required
 def interactedusers():
-    # TODO update the interactedTable and add another id,
+    # TODO Check if the users were at the same point within 3 seconds
     # making interacted_id and person_id the
     if request.method == 'POST':
         print('inside post of interactedusers')
@@ -548,9 +565,9 @@ def interaction_notification():
             message_body = "Hi!, you contacted someone having who were potentially infected with Corona Virus as\
 confirmed by the user you interacted".format(person_condition)
 
-        registration_id = "cCId39GRS-uzbEtvq3B2FV:APA91bHUs_NSTNmpatdHl0fMhZ8Gt2u8it4EXjEyAeoxjff4J2tgYPIF-MLOe3ugJaZTIMXzeN9jCLXCczrZxi4JEBNGW4b4nj_PVL6pi3_7Kf05eEjlglmxuXzNVQUvKq6OjK-FoCsp"
+        registration_id = "d8hJT99CQpk:APA91bHAQS9KIaJbSIndKq5ep2zntKjnSbDQViSkOQ5MehvqI6xInL8-t4TCmLStxjHHZXZS8aOfYuiQ1uBXX-rAhZTEMQNVI7NIXiCiVi7p1R3DKb7bra38TPpro8yBxGlsa9CNmOrT"
         message_title = "from dodge corona"
-        message_body = "Hi, you contacted someone" + person_condition
+        message_body = "Hi, you contacted someone with " + person_condition
         result = push_service.notify_single_device(registration_id=registration_id,
                                                    message_title=message_title,
                                                    message_body=message_body,
@@ -582,13 +599,15 @@ def landingpage():
 # @cross_origin()
 @app.route('/subscribepublic', methods=['POST'])
 def subscribe_for_public_info():
-    print(' not in POST')
     if request.method == 'POST':
         print('inside /subscribepublic')
         data = request.get_json(force=True)
         email = data['email']
         if email:
             print(str(email))
+            email_in_db = db.session.query(Subscribe.email).filter(Subscribe.email==str(email)).first()
+            if email_in_db:
+                return jsonify({'hello': 'world'})
             subscribe_user = Subscribe(email)
             db.session.add(subscribe_user)
             db.session.commit()
