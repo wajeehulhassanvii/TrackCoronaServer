@@ -106,10 +106,16 @@ def send_registration_data():
 
 
 @app.route('/login', methods=['GET', 'POST'])
+# @jwt_optional
 def loginUser():
     if request.method == 'POST':
+        # TODO change this to jwt_optional
         # TODO check existing access and refresh token first,
         # TODO if present then turn revoke to false
+        # TODO else create new if password correct
+        # TODO delete older token than time defined
+        # TODO if authorization is not present then create both token, 200
+        # TODO if authorization is present then don't create both tokens, 205
         request_data = request.get_json(force=True)
         try:
             email = str(request_data['email'])
