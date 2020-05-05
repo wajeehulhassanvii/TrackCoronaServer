@@ -106,10 +106,10 @@ def send_registration_data():
 
 
 @app.route('/login', methods=['GET', 'POST'])
-# @jwt_refresh_token_required
+# @jwt_refresh
 def loginUser():
     if request.method == 'POST':
-        # TODO change this to @jwt_refresh_token_required
+        # TODO change this to jwt_refresh
         # TODO check existing access and refresh token first,
         # TODO if present then turn revoke to false
         # TODO else create new if password correct
@@ -128,16 +128,46 @@ def loginUser():
             if user is not None:
                 password = request_data['password']
                 if user.check_password(password):
+                    token_type = str(request_data['token_type'])
+                    old_refresh_token_encoded = ""
+                    if token_type == "refresh":
+                        print('token type is refresh do from here')
+                        # TODO check if refresh is revoked
+                        old_refresh_token_encoded = request_data['old_refresh_token']
+                        old_refresh_jti_decoded = decode_token(old_refresh_token_encoded)['jti']
+                        print(old_refresh_jti_decoded)
+                        # TODO change revoked to false and create new access
+                        token_temp = db.session.query(TokenBlacklist).filter_by(jti=old_refresh_jti_decoded).first()
+                        token_temp.revoked = False
+                        print('step1')
+                        # TODO old access token change revoke
+                        # TODO check if refresh is revoked
+                        print('step2')
+                        old_access_token_encoded = request_data['old_access_token']
+                        print('step3')
+                        old_access_jti_decoded = decode_token(old_access_token_encoded, allow_expired=True)['jti']
+                        print('step4')
+                        print(old_access_jti_decoded)
+                        # TODO change revoked to false and create new access
+                        print('step5')
+                        token__access_temp = db.session.query(TokenBlacklist).filter_by(jti=old_access_jti_decoded).first()
+                        print('step6')
+                        token__access_temp.revoked = False
+                        # TODO old access token change revoke
+                        db.session.commit()
+                    else:
+                        refresh_token = create_refresh_token(user)
+                        add_token_to_blacklist(refresh_token, app.config['JWT_IDENTITY_CLAIM'], False)
+                        old_refresh_token_encoded = refresh_token
+                    print(token_type)
                     print('putting user as identity {}'.format(user))
                     access_token = create_access_token(identity=user,
                                                        fresh=True)
-                    refresh_token = create_refresh_token(user)
                     add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'], False)
-                    add_token_to_blacklist(refresh_token, app.config['JWT_IDENTITY_CLAIM'], False)
                     return jsonify({
                         "message": str("login successful"),
                         "access_token": access_token,
-                        "refresh_token": refresh_token
+                        "refresh_token": old_refresh_token_encoded
                                     }), 200
                 else:
                     return jsonify({"message": str("password\
@@ -161,10 +191,14 @@ def loginUser():
 @jwt_optional
 def check_login():
     if request.method == 'GET':
+        print('break after 1')
         jwt_user = get_jwt_identity()
         if jwt_user:
+            print('break after 2')
             jwt_user = jwt_user['id']
+            print('break after 3')
             is_jwt_revoked = db.session.query(TokenBlacklist.revoked).filter(TokenBlacklist.user_identity==str(jwt_user)).first()
+            print('break after 4')
             print('is jwt revoked {}'.format(is_jwt_revoked))
             return jsonify({"message": str("GET login\
                 function working"),
@@ -225,6 +259,9 @@ def refresh():
     print('inside token refreshed method')
     # TODO check database if token is revoked then
     # TODO authenticate the expired token
+    # TODO don't issue if
+    # TODO also check if refresh is revoked, if revoked don't issue
+    # TODO otherwise issue
     # don't issue if
     current_user = get_jwt_identity()
     print('------current user------- {}'.format(current_user))
