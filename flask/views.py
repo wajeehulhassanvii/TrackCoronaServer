@@ -609,7 +609,7 @@ def interaction_notification():
             message_body = "Hi!, you contacted someone having who were potentially infected with Corona Virus as\
 confirmed by the user you interacted".format(person_condition)
 
-        registration_id = "d8hJT99CQpk:APA91bHAQS9KIaJbSIndKq5ep2zntKjnSbDQViSkOQ5MehvqI6xInL8-t4TCmLStxjHHZXZS8aOfYuiQ1uBXX-rAhZTEMQNVI7NIXiCiVi7p1R3DKb7bra38TPpro8yBxGlsa9CNmOrT"
+        registration_id = "ci4P2ncRQP-tWSN8YR-zWm:APA91bGqTx5dGmj9F5IhLVdy1YqJEtHhCfBZ_U3bA6QWGzDlbZ02IwqNqG_pzBwxlw24rZuV_JynLWKlWKPim9KzVg-WwZIn8GSGm9ucXYjKP18pSltlAHs-ZfMlp89ONtkzYOt6dAmP"
         message_title = "from dodge corona"
         message_body = "Hi, you contacted someone with " + person_condition
         result = push_service.notify_single_device(registration_id=registration_id,
