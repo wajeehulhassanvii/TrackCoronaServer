@@ -106,16 +106,18 @@ def send_registration_data():
 
 
 @app.route('/login', methods=['GET', 'POST'])
-# @jwt_optional
+# @jwt_refresh_token_required
 def loginUser():
     if request.method == 'POST':
-        # TODO change this to jwt_optional
+        # TODO change this to @jwt_refresh_token_required
         # TODO check existing access and refresh token first,
         # TODO if present then turn revoke to false
         # TODO else create new if password correct
         # TODO delete older token than time defined
         # TODO if authorization is not present then create both token, 200
         # TODO if authorization is present then don't create both tokens, 205
+        # TODO check existing access and refresh token first,
+        # TODO if present then turn revoke to false
         request_data = request.get_json(force=True)
         try:
             email = str(request_data['email'])
@@ -220,30 +222,29 @@ def fresh_login():
 @app.route('/refresh', methods=['POST'])
 @jwt_refresh_token_required
 def refresh():
-    if request.method == 'POST':
-        print('inside token refreshed method')
-        # TODO check database if token is revoked then
-        # TODO authenticate the expired token
-        # don't issue if
-        current_user = get_jwt_identity()
-        # the_jwt = get_raw_jwt()
-        print('------current user------- {}'.format(current_user))
-        # TODO retrieve access_token from JSON body and see if token is present in DB
-        request_data = request.get_json(force=True)
-        old_access_token = decode_token(request_data['access_token'], allow_expired=True)
-        old_access_token = old_access_token['jti']
-        print('------old expired access token being removed------- {}'.format(old_access_token))
-        if db.session.query(TokenBlacklist).filter_by(jti=old_access_token).first():
+    print('inside token refreshed method')
+    # TODO check database if token is revoked then
+    # TODO authenticate the expired token
+    # don't issue if
+    current_user = get_jwt_identity()
+    print('------current user------- {}'.format(current_user))
+    # TODO retrieve access_token from JSON body and see if token is present in DB
+    access_token = create_access_token(identity=current_user, fresh=False)
+    print('new access_token: {}'.format(access_token))
+    # person_id = current_user['id']
+    # TODO delete expired tokens after matching them in DB
+    request_data = request.get_json(force=True)
+    old_access_token_encoded = request_data['access_token']
+    if old_access_token_encoded:
+        decoded_access_token = decode_token(old_access_token_encoded, allow_expired=True)
+        old_access_jti = decoded_access_token['jti']
+        if db.session.query(TokenBlacklist).filter_by(jti=old_access_jti).first():
             print('old access token is present')
-            db.session.query(TokenBlacklist).filter_by(jti=old_access_token).delete()
+            db.session.query(TokenBlacklist).filter_by(jti=old_access_jti).delete()
             db.session.commit()
-        access_token = create_access_token(identity=current_user, fresh=False)
-        print('new access_token: {}'.format(access_token))
-        # person_id = current_user['id']
-        # TODO delete expired tokens after matching them in DB
-        add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'], False)
-        print('new current user n access_token pushed to db')
-        return jsonify({"access_token": access_token}), 200
+    add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'], False)
+    print('new current user n access_token pushed to db')
+    return jsonify({"access_token": access_token}), 200
 
 
 @app.route('/logout', methods=['DELETE'])
