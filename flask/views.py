@@ -141,7 +141,7 @@ def loginUser():
                         token_temp.revoked = False
                         print('step1')
                         # TODO old access token change revoke
-                        # TODO check if refresh is revoked
+                        # TODO check if access is revoked
                         print('step2')
                         old_access_token_encoded = request_data['old_access_token']
                         print('step3')
@@ -150,9 +150,9 @@ def loginUser():
                         print(old_access_jti_decoded)
                         # TODO change revoked to false and create new access
                         print('step5')
-                        token__access_temp = db.session.query(TokenBlacklist).filter_by(jti=old_access_jti_decoded).first()
+                        token__access_temp = db.session.query(TokenBlacklist).filter_by(jti=old_access_jti_decoded).delete()
                         print('step6')
-                        token__access_temp.revoked = False
+                        # token__access_temp.revoked = False
                         # TODO old access token change revoke
                         db.session.commit()
                     else:
