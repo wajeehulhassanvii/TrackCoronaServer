@@ -58,6 +58,7 @@ from flask_bcrypt import generate_password_hash
 
 from extensions import push_service
 from flask_cors import CORS
+from flask_login import current_user, login_user, logout_user
 
 
 @app.route('/sendregistrationdata', methods=['POST', 'GET'])
@@ -174,6 +175,9 @@ def loginUser():
                     access_token = create_access_token(identity=user,
                                                        fresh=True)
                     add_token_to_blacklist(access_token, app.config['JWT_IDENTITY_CLAIM'], False)
+                    print('before flask login')
+                    login_user(user)
+                    print('after flask login')
                     return jsonify({
                         "message": str("login successful"),
                         "access_token": access_token,
@@ -195,6 +199,11 @@ def loginUser():
         print('inside get method')
         return jsonify({"message": str("GET login\
         function working")}), 200
+
+
+@login_manager.user_loader
+def load_user(id):
+    return User.query.get(int(id))
 
 
 @app.route('/checklogin', methods=['GET'])
@@ -303,8 +312,19 @@ def logout():
     token_temp.revoked = True
     db.session.add(token_temp)
     db.session.commit()
+    logout_user()
     print('token pushed to database for delete')
     return jsonify({"message": str("you are logged\
+        out\nstay home stay safe!!!")}), 200
+
+
+@app.route('/adminlogout', methods=['GET'])
+def admin_logout():
+    if request.method == "GET":
+        logout_user()
+        return jsonify({"message": str("admin you are logged\
+        out\nstay home stay safe!!!")}), 200
+    return jsonify({"message": str("admin you are logged\
         out\nstay home stay safe!!!")}), 200
 
 

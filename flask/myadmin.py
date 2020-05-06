@@ -18,6 +18,7 @@ class MyModelView(ModelView):
         user_email = db.session.query(User.email).first()
         check = False;
         if user_email == "waji@gmail.com":
+            print('user is waji, should be accessible')
             check = True
         else:
             check = False
@@ -36,6 +37,7 @@ class MyAdminIndexView(AdminIndexView):
         user_email = db.session.query(User.email).first()
         check = False;
         if user_email == "waji@gmail.com":
+            print('user is waji, should be accessible')
             check = True
         else:
             check = False
@@ -48,12 +50,12 @@ class MyAdminIndexView(AdminIndexView):
 
 # initialize admin with bootstrap3
 # admin = Admin(app, template_mode="bootstrap3", index_view=MyAdminIndexView())
+# admin.add_view(MyModelView(User, db.session))
 admin = Admin(app, template_mode="bootstrap3")
-admin.add_view(MyModelView(User, db.session))
 
 
 '''
-Customize Armin for admin only
+Customize admin for admin only
 - create own class for modelview
 - inherit from existing ModelView as MyModelView
 - now from inherited model we can customize anything from modelview
