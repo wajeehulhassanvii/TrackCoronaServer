@@ -64,12 +64,11 @@ from flask_cors import CORS
 def send_registration_data():
     if request.method == 'POST':
         data = request.get_json(force=True)
-
         try:
             email = data['email']
-            first_name = data['firstName']
-            last_name = data['lastName']
-            phone_number = data['phoneNumber']
+            first_name = data['first_name']
+            last_name = data['last_name']
+            phone_number = data['phone_number']
             # hashed_password = bcrypt.hashpw(data['password'].encode('utf-8'),
             #                                 bcrypt.gensalt())
             password = data['password']
@@ -85,6 +84,7 @@ def send_registration_data():
         except KeyError as err:
             print(err)
             return jsonify({"message": str("key error")}), 400
+        print('here')
         new_user = User(email, hashed_password, phone_number,
                         first_name,
                         last_name)        
@@ -118,36 +118,47 @@ def loginUser():
         # TODO if authorization is present then don't create both tokens, 205
         # TODO check existing access and refresh token first,
         # TODO if present then turn revoke to false
+        refresh_token_from_header = None
+        access_token_from_header = None
+        if 'refresh_token' in request.headers:
+            refresh_token_from_header = request.headers['refresh_token']
+            print('refresh_token_from_header {}'.format(refresh_token_from_header))
+            print(type(refresh_token_from_header))
+        if 'access_token' in request.headers:
+            access_token_from_header = request.headers['access_token']
+            print('access_token_from_header {}'.format(access_token_from_header))
+            print(type(access_token_from_header))
         request_data = request.get_json(force=True)
         try:
             email = str(request_data['email'])
             user = User.query.filter_by(email=email).first()
-            # remember_me = request_data['rememberMe']
             print('email {}'.format(email))
             print(str(user))
             if user is not None:
                 password = request_data['password']
                 if user.check_password(password):
-                    token_type = str(request_data['token_type'])
                     old_refresh_token_encoded = ""
-                    if token_type == "refresh":
+                    # TODO if refresh token is there, means access token is already there
+                    # because there cannot be access token without refresh token
+                    if refresh_token_from_header is not None:
                         print('token type is refresh do from here')
                         # TODO check if refresh is revoked
-                        old_refresh_token_encoded = request_data['old_refresh_token']
+                        old_refresh_token_encoded = refresh_token_from_header
                         old_refresh_jti_decoded = decode_token(old_refresh_token_encoded)['jti']
-                        print(old_refresh_jti_decoded)
+                        print('old_refresh_jti_decoded is {}'.format(old_refresh_jti_decoded))
                         # TODO change revoked to false and create new access
                         token_temp = db.session.query(TokenBlacklist).filter_by(jti=old_refresh_jti_decoded).first()
+                        print('this is temp token {}'.format(token_temp))
                         token_temp.revoked = False
                         print('step1')
                         # TODO old access token change revoke
                         # TODO check if access is revoked
                         print('step2')
-                        old_access_token_encoded = request_data['old_access_token']
+                        old_access_token_encoded = access_token_from_header
                         print('step3')
                         old_access_jti_decoded = decode_token(old_access_token_encoded, allow_expired=True)['jti']
                         print('step4')
-                        print(old_access_jti_decoded)
+                        print('old_access_jti_decoded is {}'.format(old_access_jti_decoded))
                         # TODO change revoked to false and create new access
                         print('step5')
                         token__access_temp = db.session.query(TokenBlacklist).filter_by(jti=old_access_jti_decoded).delete()
@@ -159,7 +170,6 @@ def loginUser():
                         refresh_token = create_refresh_token(user)
                         add_token_to_blacklist(refresh_token, app.config['JWT_IDENTITY_CLAIM'], False)
                         old_refresh_token_encoded = refresh_token
-                    print(token_type)
                     print('putting user as identity {}'.format(user))
                     access_token = create_access_token(identity=user,
                                                        fresh=True)
@@ -328,10 +338,16 @@ def logout_refresh():
 @fresh_jwt_required
 def delete_the_user():
     # jti = get_raw_jwt()['jti']
+    refresh_token_from_header = None
+    access_token_from_header = None
+    if 'refresh_token' in request.headers:
+        refresh_token_from_header = request.headers['refresh_token']
+    if 'access_token' in request.headers:
+        access_token_from_header = request.headers['access_token']
     request_data = request.get_json(force=True)
-    refresh_token = str(request_data['refresh_token'])
+    refresh_token = refresh_token_from_header
     refresh_token_jti = get_jti(refresh_token)
-    access_token = str(request_data['access_token'])
+    access_token = access_token_from_header
     access_token_jti = get_jti(access_token)
     refresh_identity = get_jwt_identity()
     person_id = refresh_identity['id']
