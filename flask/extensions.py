@@ -86,5 +86,27 @@ push_service = FCMNotification(api_key="AAAA0eHajjA:APA91bF78pTIEpZKn3EkWAqsua8F
 # )
 
 # initialize Celery
-celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
-celery.conf.update(app.config)
+def make_celery(app):
+    celery = Celery(
+        app.name,
+        backend=app.config['CELERY_RESULT_BACKEND'],
+        broker=app.config['CELERY_BROKER_URL']
+    )
+    celery.conf.update(app.config)
+
+    class ContextTask(celery.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask
+    return celery
+
+# celery = Celery(app.name,
+#                 broker=app.config['CELERY_BROKER_URL'],
+#                 # include=['update_health_with_celery', 'update_location_with_celery']
+#                 )
+# celery.conf.update(app.config)
+# app.autodiscover_tasks()
+
+celery = make_celery(app)

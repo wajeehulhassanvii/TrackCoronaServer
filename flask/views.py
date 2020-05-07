@@ -60,6 +60,7 @@ from flask_bcrypt import generate_password_hash
 from extensions import push_service
 from flask_cors import CORS
 from flask_login import current_user, login_user, logout_user
+from joblib import Parallel, delayed
 
 
 @app.route('/sendregistrationdata', methods=['POST', 'GET'])
@@ -390,38 +391,45 @@ def delete_the_user():
 
 
 @celery.task(bind=True)
-def update_health_with_celery(self, user_health_instance,
+def update_health_with_celery(self,
+                              user_health_instance,
                               main_user_condition,
                               current_user_id):
     print('before if call')
     if(user_health_instance):
         # TODO UPDATE HEALTH RECORD implement this with celery
+        print(main_user_condition)
         user_health_instance.user_health = main_user_condition
         db.session.add(user_health_instance)
         db.session.commit()
     else:
         # TODO ADD HEALTH RECORD implement this with celery
+        print(main_user_condition)
         db.session.add(UserHealth(main_user_condition, current_user_id))
         db.session.commit()
     # return {"status": "updated health"}
 
 
 @celery.task(bind=True)
-def update_location_with_celery(self, last_loc_instance,
+def update_location_with_celery(self,
+                                last_loc_instance,
                                 point_wkt,
                                 current_user_id):
     print('before if call')
     if(last_loc_instance):
         print('instance found')
         # TODO UPDATE LOCATION implement this with celery
+        print(point_wkt)
         last_loc_instance.latest_point = point_wkt
         last_loc_instance.last_modified = dt.datetime.utcnow()
         db.session.add(last_loc_instance)
         db.session.commit()
     else:
         # TODO ADD LOCATION implement this with celery
+        print(point_wkt)
         print('instance not found')
         db.session.add(LastLocationPostGis(point_wkt, current_user_id))
+        print('before')
         db.session.commit()
     # return {"status": "updated location"}
 
@@ -456,7 +464,10 @@ def get_users_within_diameter():
             # print(point_string)
             # update UserHealth with users health
             user_health_instance = db.session.query(UserHealth).filter(UserHealth.person_id == current_user_id).first()
-            update_health_with_celery.delay(user_health_instance, main_user_condition, current_user_id)
+            
+            update_health_with_celery.delay(user_health_instance,
+                                            main_user_condition,
+                                            current_user_id)
             # if(user_health_instance):
             #     # TODO UPDATE HEALTH RECORD implement this with celery
             #     user_health_instance.user_health = main_user_condition
@@ -469,19 +480,23 @@ def get_users_within_diameter():
 
             # update LastLocationGis with users last location
             last_loc_instance = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id == current_user_id).first()
-            update_location_with_celery(last_loc_instance, point_wkt, current_user_id)
-            # if(last_loc_instance):
-            #     print('instance found')
-            #     # TODO UPDATE LOCATION implement this with celery
-            #     last_loc_instance.latest_point = point_wkt
-            #     last_loc_instance.last_modified = dt.datetime.utcnow()
-            #     db.session.add(last_loc_instance)
-            #     db.session.commit()
-            # else:
-            #     # TODO ADD LOCATION implement this with celery
-            #     print('instance not found')
-            #     db.session.add(LastLocationPostGis(point_wkt, current_user_id))
-            #     db.session.commit()
+            print('last location is {}'.format(last_loc_instance))
+            
+            # update_location_with_celery.delay(last_loc_instance,
+            #                             point_wkt,
+            #                             current_user_id)
+            if(last_loc_instance):
+                print('instance found')
+                # TODO UPDATE LOCATION implement this with celery
+                last_loc_instance.latest_point = point_wkt
+                last_loc_instance.last_modified = dt.datetime.utcnow()
+                db.session.add(last_loc_instance)
+                db.session.commit()
+            else:
+                # TODO ADD LOCATION implement this with celery
+                print('instance not found')
+                db.session.add(LastLocationPostGis(point_wkt, current_user_id))
+                db.session.commit()
             # working
 
             # Find all points and remove our own point
@@ -493,23 +508,29 @@ def get_users_within_diameter():
                 1000)
             
             list_of_users = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.active==True).filter(list_of_users_filter).order_by(LastLocationPostGis.person_id).all()
+            print(list_of_users)
 
             if len(list_of_users) > 0:
 
                 temp_list_user_ids = []
                 # TODO paralellize for loop
-                for every_user in list_of_users:
-                    temp_list_user_ids.append(every_user.person_id)
+                # temp_list_user_ids_parallel=[]
+                # temp_list_user_ids_parallel = Parallel(n_jobs=2)(delayed(i) for i in range(10))
+                # print(temp_list_user_ids_parallel)
+                with Parallel(n_jobs=1):
+                    for every_user in list_of_users:
+                        temp_list_user_ids.append(every_user.person_id)
 
                 temp_list_users_conditions = db.session.query(UserHealth).filter(UserHealth.person_id.in_(temp_list_user_ids)).order_by(UserHealth.person_id).all()
                 list_of_user_location_and_health = []
                 # TODO paralellize for loop
-                for i in range(len(list_of_users)):
-                    temp_obj = UserLocationAndHealth(str(to_shape(list_of_users[i].latest_point).y),
-                                                     str(to_shape(list_of_users[i].latest_point).x),
-                                                     list_of_users[i].person_id,
-                                                     temp_list_users_conditions[i].user_health)
-                    list_of_user_location_and_health.append(temp_obj)
+                with Parallel(n_jobs=1):
+                    for i in range(len(list_of_users)):
+                        temp_obj = UserLocationAndHealth(str(to_shape(list_of_users[i].latest_point).y),
+                                                        str(to_shape(list_of_users[i].latest_point).x),
+                                                        list_of_users[i].person_id,
+                                                        temp_list_users_conditions[i].user_health)
+                        list_of_user_location_and_health.append(temp_obj)
 
                 user_location_health_return = [e.serialize() for e in list_of_user_location_and_health]
                 return jsonify(
