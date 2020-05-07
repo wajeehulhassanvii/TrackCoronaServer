@@ -721,8 +721,6 @@ def feedback():
             db.session.commit()
         else:
             print('not email')
-        # TODO push feedback to db
-        # TODO also implement a page to read feedback for admin only
         # unique email and also create one for deletion
         return jsonify({'hello': 'world'})
     return jsonify({'hello': 'world'})

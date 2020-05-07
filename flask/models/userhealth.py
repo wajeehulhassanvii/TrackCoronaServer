@@ -24,3 +24,4 @@ class UserHealth(db.Model):
                     'user_health': self.user_health,
                     'person_id': self.person_id,
                 }
+
