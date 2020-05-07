@@ -22,7 +22,7 @@ from flask_jwt_extended import (JWTManager, jwt_required,
                                 set_access_cookies, set_refresh_cookies,
                                 unset_jwt_cookies, unset_access_cookies)
 
-
+from celery import Celery
 from flask_cors import CORS
 
 # Configure application with config file in root directory named config.cfg
@@ -84,3 +84,7 @@ CORS(app)
 push_service = FCMNotification(api_key="AAAA0eHajjA:APA91bF78pTIEpZKn3EkWAqsua8FNx-6kj3t9g-21Mv5IbFZhiuIlfsNPRPq8jl802KtLNUWCBFd5fj0glA4DxnaQxGeoed2CN_HYo2qQbNRUfq48gybH0qWE0pYM0YvQY7Bx6MHbavo")
     #                             #    proxy_dict=proxy_dict
 # )
+
+# initialize Celery
+celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
+celery.conf.update(app.config)

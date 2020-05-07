@@ -4,6 +4,7 @@ from app import db
 from extensions import session
 from extensions import login_manager
 from extensions import mail
+from extensions import celery
 from flask_mail import Message
 from app import jwt
 
@@ -388,6 +389,43 @@ def delete_the_user():
         has been deleted\nstay safe keep your family safe!!!")}), 200
 
 
+@celery.task(bind=True)
+def update_health_with_celery(self, user_health_instance,
+                              main_user_condition,
+                              current_user_id):
+    print('before if call')
+    if(user_health_instance):
+        # TODO UPDATE HEALTH RECORD implement this with celery
+        user_health_instance.user_health = main_user_condition
+        db.session.add(user_health_instance)
+        db.session.commit()
+    else:
+        # TODO ADD HEALTH RECORD implement this with celery
+        db.session.add(UserHealth(main_user_condition, current_user_id))
+        db.session.commit()
+    # return {"status": "updated health"}
+
+
+@celery.task(bind=True)
+def update_location_with_celery(self, last_loc_instance,
+                                point_wkt,
+                                current_user_id):
+    print('before if call')
+    if(last_loc_instance):
+        print('instance found')
+        # TODO UPDATE LOCATION implement this with celery
+        last_loc_instance.latest_point = point_wkt
+        last_loc_instance.last_modified = dt.datetime.utcnow()
+        db.session.add(last_loc_instance)
+        db.session.commit()
+    else:
+        # TODO ADD LOCATION implement this with celery
+        print('instance not found')
+        db.session.add(LastLocationPostGis(point_wkt, current_user_id))
+        db.session.commit()
+    # return {"status": "updated location"}
+
+
 @app.route('/getuserswithindiameter', methods=['POST', 'GET'])
 @jwt_required
 def get_users_within_diameter():
@@ -418,30 +456,32 @@ def get_users_within_diameter():
             # print(point_string)
             # update UserHealth with users health
             user_health_instance = db.session.query(UserHealth).filter(UserHealth.person_id == current_user_id).first()
-            if(user_health_instance):
-                # TODO implement this with celery
-                user_health_instance.user_health = main_user_condition
-                db.session.add(user_health_instance)
-                db.session.commit()
-            else:
-                # TODO implement this with celery
-                db.session.add(UserHealth(main_user_condition, current_user_id))
-                db.session.commit()
+            update_health_with_celery.delay(user_health_instance, main_user_condition, current_user_id)
+            # if(user_health_instance):
+            #     # TODO UPDATE HEALTH RECORD implement this with celery
+            #     user_health_instance.user_health = main_user_condition
+            #     db.session.add(user_health_instance)
+            #     db.session.commit()
+            # else:
+            #     # TODO ADD HEALTH RECORD implement this with celery
+            #     db.session.add(UserHealth(main_user_condition, current_user_id))
+            #     db.session.commit()
 
             # update LastLocationGis with users last location
             last_loc_instance = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id == current_user_id).first()
-            if(last_loc_instance):
-                print('instance found')
-                # TODO implement this with celery
-                last_loc_instance.latest_point = point_wkt
-                last_loc_instance.last_modified = dt.datetime.utcnow()
-                db.session.add(last_loc_instance)
-                db.session.commit()
-            else:
-                # TODO implement this with celery
-                print('instance not found')
-                db.session.add(LastLocationPostGis(point_wkt, current_user_id))
-                db.session.commit()
+            update_location_with_celery(last_loc_instance, point_wkt, current_user_id)
+            # if(last_loc_instance):
+            #     print('instance found')
+            #     # TODO UPDATE LOCATION implement this with celery
+            #     last_loc_instance.latest_point = point_wkt
+            #     last_loc_instance.last_modified = dt.datetime.utcnow()
+            #     db.session.add(last_loc_instance)
+            #     db.session.commit()
+            # else:
+            #     # TODO ADD LOCATION implement this with celery
+            #     print('instance not found')
+            #     db.session.add(LastLocationPostGis(point_wkt, current_user_id))
+            #     db.session.commit()
             # working
 
             # Find all points and remove our own point
