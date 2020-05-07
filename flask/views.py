@@ -60,7 +60,10 @@ from flask_bcrypt import generate_password_hash
 from extensions import push_service
 from flask_cors import CORS
 from flask_login import current_user, login_user, logout_user
+
 from joblib import Parallel, delayed
+
+import asyncio
 
 
 @app.route('/sendregistrationdata', methods=['POST', 'GET'])
@@ -465,22 +468,31 @@ def get_users_within_diameter():
             # update UserHealth with users health
             user_health_instance = db.session.query(UserHealth).filter(UserHealth.person_id == current_user_id).first()
             
-            update_health_with_celery.delay(user_health_instance,
-                                            main_user_condition,
-                                            current_user_id)
-            # if(user_health_instance):
-            #     # TODO UPDATE HEALTH RECORD implement this with celery
-            #     user_health_instance.user_health = main_user_condition
-            #     db.session.add(user_health_instance)
-            #     db.session.commit()
-            # else:
-            #     # TODO ADD HEALTH RECORD implement this with celery
-            #     db.session.add(UserHealth(main_user_condition, current_user_id))
-            #     db.session.commit()
+            # update_health_with_celery(user_health_instance,
+            #                                 main_user_condition,
+            #                                 current_user_id)
+            
+            # update_health_with_celery.delay(user_health_instance,
+            #                                 main_user_condition,
+            #                                 current_user_id)
+            
+            if(user_health_instance):
+                # TODO UPDATE HEALTH RECORD implement this with celery
+                user_health_instance.user_health = main_user_condition
+                db.session.add(user_health_instance)
+                db.session.commit()
+            else:
+                # TODO ADD HEALTH RECORD implement this with celery
+                db.session.add(UserHealth(main_user_condition, current_user_id))
+                db.session.commit()
 
             # update LastLocationGis with users last location
             last_loc_instance = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.person_id == current_user_id).first()
             print('last location is {}'.format(last_loc_instance))
+            
+            # update_location_with_celery(last_loc_instance,
+            #                             point_wkt,
+            #                             current_user_id)
             
             # update_location_with_celery.delay(last_loc_instance,
             #                             point_wkt,
@@ -506,12 +518,13 @@ def get_users_within_diameter():
             list_of_users_filter = func.ST_DWithin(
                 LastLocationPostGis.latest_point, point_wkt,
                 1000)
-            
+            print('before within')
             list_of_users = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.active==True).filter(list_of_users_filter).order_by(LastLocationPostGis.person_id).all()
+            print('after within')
             print(list_of_users)
 
             if len(list_of_users) > 0:
-
+                print('len(list_of_users)')
                 temp_list_user_ids = []
                 # TODO paralellize for loop
                 # temp_list_user_ids_parallel=[]
@@ -535,7 +548,27 @@ def get_users_within_diameter():
                 user_location_health_return = [e.serialize() for e in list_of_user_location_and_health]
                 return jsonify(
                     message=str("fetching complete ....."),
-                    list_of_user_location_and_health=(user_location_health_return),), 200
+                    list_of_user_location_and_health=(user_location_health_return),
+                    # prev_lat=main_user_latitude,
+                    # prev_lng=main_user_longitude,
+                    # prev_health=main_user_condition
+                    ), 200
+            elif len(list_of_users) == 0:
+                print('len(list_of_users) == 0')
+                print('here')
+                list_of_user_location_and_health = []
+                temp_obj = UserLocationAndHealth(main_user_latitude,
+                                                main_user_longitude,
+                                                current_user_id,
+                                                main_user_condition)
+                print(temp_obj)
+                list_of_user_location_and_health.append(temp_obj)
+                user_location_health_return = [e.serialize() for e in list_of_user_location_and_health]
+                print(user_location_health_return)
+                return jsonify(
+                    message=str("fetching complete ....."),
+                    list_of_user_location_and_health=(user_location_health_return),
+                    ), 200
             else:
                 return jsonify(message=str("in side post"),
                                list_of_users=[]), 200
