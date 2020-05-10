@@ -25,6 +25,8 @@ from flask_jwt_extended import (JWTManager, jwt_required,
 from celery import Celery
 from flask_cors import CORS
 
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+
 # Configure application with config file in root directory named config.cfg
 app = Flask(
     __name__,
@@ -40,6 +42,8 @@ ACCESS_EXPIRES = datetime.timedelta(seconds=30)
 REFRESH_EXPIRES = datetime.timedelta(days=5)
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = ACCESS_EXPIRES
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = REFRESH_EXPIRES
+
+
 
 # INITIALIZE DIFFERENT GLOBAL VARIABLES
 json = FlaskJSON(app)
@@ -110,3 +114,7 @@ def make_celery(app):
 # app.autodiscover_tasks()
 
 celery = make_celery(app)
+
+from apscheduler.schedulers.background import BackgroundScheduler
+scheduler = BackgroundScheduler()
+

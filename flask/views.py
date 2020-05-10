@@ -63,7 +63,24 @@ from flask_login import current_user, login_user, logout_user
 
 from joblib import Parallel, delayed
 
+import time
+import atexit
+
 import asyncio
+
+from extensions import scheduler
+
+def delete_last_location_and_health_periodically():
+    print(time.strftime("%A, %d. %B %Y %I:%M:%S %p"))
+    db.session.query(UserHealth).delete()
+    db.session.query(LastLocationPostGis).delete()
+    db.session.commit()
+    print('deleted all records of userhealth and lastlocationpostgis')
+
+
+scheduler.add_job(func=delete_last_location_and_health_periodically, trigger="interval", seconds=5)
+scheduler.start()
+atexit.register(lambda: scheduler.shutdown())
 
 
 @app.route('/sendregistrationdata', methods=['POST', 'GET'])
@@ -115,15 +132,6 @@ def send_registration_data():
 # @jwt_refresh
 def loginUser():
     if request.method == 'POST':
-        # TODO change this to jwt_refresh
-        # TODO check existing access and refresh token first,
-        # TODO if present then turn revoke to false
-        # TODO else create new if password correct
-        # TODO delete older token than time defined
-        # TODO if authorization is not present then create both token, 200
-        # TODO if authorization is present then don't create both tokens, 205
-        # TODO check existing access and refresh token first,
-        # TODO if present then turn revoke to false
         refresh_token_from_header = None
         access_token_from_header = None
         if 'refresh_token' in request.headers:
@@ -144,33 +152,26 @@ def loginUser():
                 password = request_data['password']
                 if user.check_password(password):
                     old_refresh_token_encoded = ""
-                    # TODO if refresh token is there, means access token is already there
                     # because there cannot be access token without refresh token
                     if refresh_token_from_header is not None:
                         print('token type is refresh do from here')
-                        # TODO check if refresh is revoked
                         old_refresh_token_encoded = refresh_token_from_header
                         old_refresh_jti_decoded = decode_token(old_refresh_token_encoded)['jti']
                         print('old_refresh_jti_decoded is {}'.format(old_refresh_jti_decoded))
-                        # TODO change revoked to false and create new access
                         token_temp = db.session.query(TokenBlacklist).filter_by(jti=old_refresh_jti_decoded).first()
                         print('this is temp token {}'.format(token_temp))
                         token_temp.revoked = False
                         print('step1')
-                        # TODO old access token change revoke
-                        # TODO check if access is revoked
                         print('step2')
                         old_access_token_encoded = access_token_from_header
                         print('step3')
                         old_access_jti_decoded = decode_token(old_access_token_encoded, allow_expired=True)['jti']
                         print('step4')
                         print('old_access_jti_decoded is {}'.format(old_access_jti_decoded))
-                        # TODO change revoked to false and create new access
                         print('step5')
                         token__access_temp = db.session.query(TokenBlacklist).filter_by(jti=old_access_jti_decoded).delete()
                         print('step6')
                         # token__access_temp.revoked = False
-                        # TODO old access token change revoke
                         db.session.commit()
                     else:
                         refresh_token = create_refresh_token(user)
@@ -281,15 +282,9 @@ def fresh_login():
 @jwt_refresh_token_required
 def refresh():
     print('inside token refreshed method')
-    # TODO check database if token is revoked then
-    # TODO authenticate the expired token
-    # TODO don't issue if
-    # TODO also check if refresh is revoked, if revoked don't issue
-    # TODO otherwise issue
     # don't issue if
     current_user = get_jwt_identity()
     print('------current user------- {}'.format(current_user))
-    # TODO retrieve access_token from JSON body and see if token is present in DB
     access_token = create_access_token(identity=current_user, fresh=False)
     print('new access_token: {}'.format(access_token))
     # person_id = current_user['id']
@@ -400,13 +395,11 @@ def update_health_with_celery(self,
                               current_user_id):
     print('before if call')
     if(user_health_instance):
-        # TODO UPDATE HEALTH RECORD implement this with celery
         print(main_user_condition)
         user_health_instance.user_health = main_user_condition
         db.session.add(user_health_instance)
         db.session.commit()
     else:
-        # TODO ADD HEALTH RECORD implement this with celery
         print(main_user_condition)
         db.session.add(UserHealth(main_user_condition, current_user_id))
         db.session.commit()
@@ -421,14 +414,12 @@ def update_location_with_celery(self,
     print('before if call')
     if(last_loc_instance):
         print('instance found')
-        # TODO UPDATE LOCATION implement this with celery
         print(point_wkt)
         last_loc_instance.latest_point = point_wkt
         last_loc_instance.last_modified = dt.datetime.utcnow()
         db.session.add(last_loc_instance)
         db.session.commit()
     else:
-        # TODO ADD LOCATION implement this with celery
         print(point_wkt)
         print('instance not found')
         db.session.add(LastLocationPostGis(point_wkt, current_user_id))
@@ -477,12 +468,10 @@ def get_users_within_diameter():
             #                                 current_user_id)
             
             if(user_health_instance):
-                # TODO UPDATE HEALTH RECORD implement this with celery
                 user_health_instance.user_health = main_user_condition
                 db.session.add(user_health_instance)
                 db.session.commit()
             else:
-                # TODO ADD HEALTH RECORD implement this with celery
                 db.session.add(UserHealth(main_user_condition, current_user_id))
                 db.session.commit()
 
@@ -499,13 +488,11 @@ def get_users_within_diameter():
             #                             current_user_id)
             if(last_loc_instance):
                 print('instance found')
-                # TODO UPDATE LOCATION implement this with celery
                 last_loc_instance.latest_point = point_wkt
                 last_loc_instance.last_modified = dt.datetime.utcnow()
                 db.session.add(last_loc_instance)
                 db.session.commit()
             else:
-                # TODO ADD LOCATION implement this with celery
                 print('instance not found')
                 db.session.add(LastLocationPostGis(point_wkt, current_user_id))
                 db.session.commit()
@@ -517,7 +504,7 @@ def get_users_within_diameter():
             # wkb_point = WKBSpatialElement(buffer(point.wkb ), 4326 )
             list_of_users_filter = func.ST_DWithin(
                 LastLocationPostGis.latest_point, point_wkt,
-                1000)
+                100)
             print('before within')
             list_of_users = db.session.query(LastLocationPostGis).filter(LastLocationPostGis.active==True).filter(list_of_users_filter).order_by(LastLocationPostGis.person_id).all()
             print('after within')
@@ -526,7 +513,6 @@ def get_users_within_diameter():
             if len(list_of_users) > 0:
                 print('len(list_of_users)')
                 temp_list_user_ids = []
-                # TODO paralellize for loop
                 # temp_list_user_ids_parallel=[]
                 # temp_list_user_ids_parallel = Parallel(n_jobs=2)(delayed(i) for i in range(10))
                 # print(temp_list_user_ids_parallel)
@@ -536,7 +522,6 @@ def get_users_within_diameter():
 
                 temp_list_users_conditions = db.session.query(UserHealth).filter(UserHealth.person_id.in_(temp_list_user_ids)).order_by(UserHealth.person_id).all()
                 list_of_user_location_and_health = []
-                # TODO paralellize for loop
                 with Parallel(n_jobs=1):
                     for i in range(len(list_of_users)):
                         temp_obj = UserLocationAndHealth(str(to_shape(list_of_users[i].latest_point).y),
@@ -739,7 +724,7 @@ def interaction_notification():
             message_body = "Hi!, you contacted someone having who were potentially infected with Corona Virus as\
 confirmed by the user you interacted".format(person_condition)
 
-        registration_id = "ci4P2ncRQP-tWSN8YR-zWm:APA91bGqTx5dGmj9F5IhLVdy1YqJEtHhCfBZ_U3bA6QWGzDlbZ02IwqNqG_pzBwxlw24rZuV_JynLWKlWKPim9KzVg-WwZIn8GSGm9ucXYjKP18pSltlAHs-ZfMlp89ONtkzYOt6dAmP"
+        registration_id = "eqE83Tf3TqC06UOhae2UPT:APA91bG7D5Ub3AXkRiyAgPfnQr8bXrbxu6wXmSAXTIAYN8gwtYwQCOsB4G1ayWf-fiZWPwv0hTRO0sqMN2swonixpvPkeZKKB2aX5B6Sw_hrnpHSqeRQWYgNkfpcNChcmeKOmup3TgxC"
         message_title = "from dodge corona"
         message_body = "Hi, you contacted someone with " + person_condition
         result = push_service.notify_single_device(registration_id=registration_id,
@@ -787,7 +772,6 @@ def subscribe_for_public_info():
             db.session.commit()
         else:
             print('not email')
-        # TODO implement subscribtion of email, store it in the db
         # unique email and also create one for deletion
         return jsonify({'hello': 'world'})
     return jsonify({'hello': 'world'})
